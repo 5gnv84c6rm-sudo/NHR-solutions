@@ -1,14 +1,20 @@
-import { useMemo } from "react";
-import { Check, X } from "lucide-react";
+import { useMemo, useState, type FormEvent } from "react";
+import { Check, X, Plus } from "lucide-react";
 import { useCollection } from "../../lib/hooks";
 import { employeesStore, attendanceStore, leaveStore } from "../../lib/store";
 import { PageHeader, Card, Badge, StatCard } from "../../components/dashboard/ui";
-import type { Employee, LeaveRequest } from "../../types";
+import { Modal } from "../../components/Modal";
+import type { Employee, LeaveRequest, AttendanceRecord } from "../../types";
 
 export default function AttendanceLeave() {
   const { data: employees } = useCollection(() => employeesStore.list());
-  const { data: attendance, loading: loadingAttendance } = useCollection(() => attendanceStore.list());
+  const {
+    data: attendance,
+    setData: setAttendance,
+    loading: loadingAttendance,
+  } = useCollection(() => attendanceStore.list());
   const { data: leave, setData: setLeave, loading: loadingLeave } = useCollection(() => leaveStore.list());
+  const [addOpen, setAddOpen] = useState(false);
 
   const employeeById = useMemo(() => {
     const map = new Map<string, Employee>();
@@ -26,9 +32,45 @@ export default function AttendanceLeave() {
     setLeave((prev) => prev.map((l) => (l.id === item.id ? { ...l, status } : l)));
   };
 
+  const handleAddAttendance = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const str = (name: string) => {
+      const value = form.get(name);
+      return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+    };
+
+    const newRecord: AttendanceRecord = {
+      id: `a${Date.now()}`,
+      employeeId: String(form.get("employeeId")),
+      date: str("date") ?? new Date().toISOString().slice(0, 10),
+      clockIn: str("clockIn"),
+      clockOut: str("clockOut"),
+      method: (str("method") as AttendanceRecord["method"]) ?? "Manual",
+      status: (str("status") as AttendanceRecord["status"]) ?? "present",
+    };
+    await attendanceStore.create(newRecord);
+    setAttendance((prev) => [...prev, newRecord]);
+    setAddOpen(false);
+    e.currentTarget.reset();
+  };
+
   return (
     <div>
-      <PageHeader title="Attendance & leave" description="Real-time tracking with a self-service portal." />
+      <PageHeader
+        title="Attendance & leave"
+        description="Real-time tracking with a self-service portal."
+        action={
+          employees.length > 0 ? (
+            <button
+              onClick={() => setAddOpen(true)}
+              className="flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
+            >
+              <Plus size={16} /> Add record
+            </button>
+          ) : undefined
+        }
+      />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard label="Present today" value={loadingAttendance ? "…" : present} tone="accent" />
@@ -53,6 +95,15 @@ export default function AttendanceLeave() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-ink-100">
+                {!loadingAttendance && attendance.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-ink-400">
+                      {employees.length === 0
+                        ? "Add an employee first, then you can record attendance."
+                        : 'No attendance recorded yet — click "Add record" to log a clock in/out.'}
+                    </td>
+                  </tr>
+                )}
                 {attendance.map((rec) => {
                   const emp = employeeById.get(rec.employeeId);
                   return (
@@ -78,6 +129,9 @@ export default function AttendanceLeave() {
             {!loadingLeave && <span className="text-xs font-medium text-ink-400">{pendingLeave.length} pending</span>}
           </div>
           <div className="divide-y divide-ink-100">
+            {!loadingLeave && leave.length === 0 && (
+              <p className="p-5 text-sm text-ink-400">No leave requests yet.</p>
+            )}
             {leave.map((item) => {
               const emp = employeeById.get(item.employeeId);
               return (
@@ -113,6 +167,95 @@ export default function AttendanceLeave() {
           </div>
         </Card>
       </div>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add attendance record" subtitle="Log a clock in/out for an employee.">
+        <form className="space-y-4" onSubmit={handleAddAttendance}>
+          <label htmlFor="employeeId" className="block text-sm">
+            <span className="mb-1.5 block font-medium text-ink-700">Employee</span>
+            <select
+              id="employeeId"
+              name="employeeId"
+              required
+              defaultValue=""
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            >
+              <option value="" disabled>
+                Select an employee…
+              </option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.firstName} {emp.lastName}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label htmlFor="date" className="block text-sm">
+            <span className="mb-1.5 block font-medium text-ink-700">Date</span>
+            <input
+              id="date"
+              name="date"
+              type="date"
+              defaultValue={new Date().toISOString().slice(0, 10)}
+              className="w-full rounded-lg border border-ink-200 px-3 py-2 text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+            />
+          </label>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label htmlFor="clockIn" className="block text-sm">
+              <span className="mb-1.5 block font-medium text-ink-700">Clock in</span>
+              <input
+                id="clockIn"
+                name="clockIn"
+                type="time"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </label>
+            <label htmlFor="clockOut" className="block text-sm">
+              <span className="mb-1.5 block font-medium text-ink-700">Clock out</span>
+              <input
+                id="clockOut"
+                name="clockOut"
+                type="time"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label htmlFor="method" className="block text-sm">
+              <span className="mb-1.5 block font-medium text-ink-700">Method</span>
+              <select
+                id="method"
+                name="method"
+                defaultValue="Manual"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              >
+                <option>Manual</option>
+                <option>Web</option>
+                <option>GPS mobile</option>
+              </select>
+            </label>
+            <label htmlFor="status" className="block text-sm">
+              <span className="mb-1.5 block font-medium text-ink-700">Status</span>
+              <select
+                id="status"
+                name="status"
+                defaultValue="present"
+                className="w-full rounded-lg border border-ink-200 px-3 py-2 text-ink-900 outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+              >
+                <option value="present">Present</option>
+                <option value="late">Late</option>
+                <option value="absent">Absent</option>
+              </select>
+            </label>
+          </div>
+
+          <button type="submit" className="w-full rounded-lg bg-brand-600 px-4 py-2.5 font-medium text-white transition hover:bg-brand-700">
+            Add record
+          </button>
+        </form>
+      </Modal>
     </div>
   );
 }

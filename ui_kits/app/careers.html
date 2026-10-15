@@ -1,0 +1,293 @@
+<!-- @dsCard group="Platform" viewport="1440x900" name="Careers page" subtitle="Hosted public job board — published adverts, apply form, applications land in the Recruitment pipeline" -->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#FFFFFF">
+<title>Careers — Northgate Services</title>
+<link rel="icon" type="image/png" href="../../assets/logo-mark-dark.png">
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.544.0/dist/umd/lucide.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+body{margin:0;background:var(--nhr-light);color:var(--nhr-text-dark);font-family:var(--font-core)}
+.cr-wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+.cr-detail{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:28px;align-items:start}
+.cr-apply{position:sticky;top:20px}
+.cr-filters{display:grid;grid-template-columns:minmax(0,2fr) repeat(2,minmax(0,1fr));gap:12px}
+.cr-jobs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.cr-job{transition:transform var(--dur-base) var(--ease-out),box-shadow var(--dur-base) var(--ease-out),border-color var(--dur-base) var(--ease-out)}
+.cr-job:hover{transform:translateY(-3px);border-color:var(--nhr-turquoise) !important;box-shadow:0 18px 40px -24px rgba(0,112,106,.45)}
+.cr-job:focus-visible{outline:3px solid var(--nhr-turquoise);outline-offset:2px}
+@media (max-width:960px){.cr-detail{grid-template-columns:1fr}.cr-apply{position:static}}
+@media (min-width:961px){.cr-applybar{display:none !important}}
+@media (max-width:760px){.cr-jobs{grid-template-columns:1fr}.cr-filters{grid-template-columns:1fr}.cr-wrap{padding:0 16px}.cr-hero h1{font-size:34px !important}}
+h1,h2,h3,p,span,li{overflow-wrap:anywhere}
+</style>
+</head><body>
+<div id="root"></div>
+<script type="text/babel" src="../../assets/icons/icon-helper.jsx"></script>
+<script src="employeeStore.js"></script>
+<script src="recruitmentStore.js"></script>
+<script src="jobAdvertStore.js"></script>
+<script src="candidateMailStore.js"></script>
+<script src="../website/data.js"></script>
+<script src="../website/supabase-config.js"></script>
+<script src="../website/supabaseClient.js"></script>
+<script type="text/babel" src="../website/Chrome.jsx"></script>
+<script type="text/babel" src="EmployeeShared.jsx"></script>
+<script type="text/babel" src="JobAdvertsModule.jsx"></script>
+<script type="text/babel" src="JobAdvertsScreens.jsx"></script>
+<script type="text/babel">
+/* Hosted careers page for one employer. Public — no sign-in. Reads published
+   adverts from JobAdvertStore; an application calls JobAdvertStore.apply,
+   which creates the candidate in the employer's Recruitment pipeline. */
+const { Button, Badge, Card, Input, Select, Checkbox } = window.NHRSolutionDesignSystem_0db691;
+const COMPANY = 'Northgate Services';
+const JA = window.JobAdvertStore;
+
+function useHash() {
+  const [h, setH] = React.useState(location.hash.slice(1));
+  React.useEffect(() => { const on = () => { setH(location.hash.slice(1)); window.scrollTo(0, 0); }; window.addEventListener('hashchange', on); return () => window.removeEventListener('hashchange', on); }, []);
+  return h;
+}
+
+function CareersHeader() {
+  return (
+    <header style={{ background: 'var(--nhr-white)', borderBottom: '1px solid var(--nhr-line-light)' }}>
+      <div className="cr-wrap" style={{ display: 'flex', alignItems: 'center', gap: 14, height: 68 }}>
+        <a href="#" style={{ display: 'flex', alignItems: 'center', gap: 11, textDecoration: 'none', color: 'var(--nhr-text-dark)' }}>
+          <span aria-hidden="true" style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--nhr-text-dark)', color: 'var(--nhr-turquoise)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 14 }}>NS</span>
+          <span style={{ display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 15, fontWeight: 800, letterSpacing: '-.01em' }}>{COMPANY}</span>
+            <span style={{ fontSize: 11.5, color: 'var(--nhr-text-muted-ink)' }}>Careers</span>
+          </span>
+        </a>
+        <span style={{ flex: 1 }} />
+        <a href="index.html" style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--nhr-turquoise-ink)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Icon name="ArrowLeft" size={14} /> Back to platform
+        </a>
+      </div>
+    </header>
+  );
+}
+
+function JobList() {
+  const [q, setQ] = React.useState('');
+  const [dept, setDept] = React.useState('');
+  const [wp, setWp] = React.useState('');
+  const [, force] = React.useReducer(n => n + 1, 0);
+  React.useEffect(() => JA.subscribe(force), []);
+  const all = JA.list({ publicOnly: true });
+  const jobs = all.filter(a => (!dept || a.department === dept) && (!wp || a.workplace === wp) &&
+    (!q || [a.title, a.location, a.department, a.summary].join(' ').toLowerCase().includes(q.toLowerCase())));
+  const depts = Array.from(new Set(all.map(a => a.department))).sort();
+  return (
+    <React.Fragment>
+      <section className="cr-hero" style={{ background: 'var(--nhr-text-dark)', color: '#fff', position: 'relative', overflow: 'hidden' }}>
+        <div aria-hidden="true" style={{ position: 'absolute', right: -120, top: -160, width: 480, height: 480, borderRadius: '50%', background: 'radial-gradient(circle, rgba(0,229,212,.28), transparent 65%)' }} />
+        <div className="cr-wrap" style={{ padding: '56px 24px 64px', position: 'relative', display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <span style={{ fontSize: 12, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: 'var(--nhr-turquoise)' }}>Careers at {COMPANY}</span>
+          <h1 style={{ margin: 0, color: '#fff', fontSize: 46, fontWeight: 800, letterSpacing: '-.03em', lineHeight: 1.08, maxWidth: 680 }}>Do your best work with a team that backs you.</h1>
+          <p style={{ margin: 0, fontSize: 16.5, lineHeight: 1.65, color: 'rgba(245,255,255,.74)', maxWidth: 600 }}>
+            {all.length} open {all.length === 1 ? 'role' : 'roles'} across warehouse, finance, support and operations. Every application is read by a person.
+          </p>
+        </div>
+      </section>
+      <main className="cr-wrap" style={{ padding: '28px 24px 64px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div className="cr-filters" role="search">
+          <Input tone="light" label="Search roles" placeholder="Job title, skill or town" value={q} onChange={e => setQ(e.target.value)} iconLeft={<Icon name="Search" size={16} />} />
+          <Select tone="light" label="Department" placeholder="All departments" value={dept} onChange={e => setDept(e.target.value)} options={depts} />
+          <Select tone="light" label="Workplace" placeholder="Any workplace" value={wp} onChange={e => setWp(e.target.value)} options={JA.WORKPLACES} />
+        </div>
+        <span aria-live="polite" style={{ fontSize: 13, color: 'var(--nhr-text-muted-ink)' }}>{jobs.length} {jobs.length === 1 ? 'role' : 'roles'} found</span>
+        {jobs.length ? (
+          <div className="cr-jobs">
+            {jobs.map(a => (
+              <a key={a.id} href={'#' + a.reference} className="cr-job" style={{
+                display: 'flex', flexDirection: 'column', gap: 12, padding: 22, textDecoration: 'none', color: 'inherit',
+                background: 'var(--nhr-white)', border: '1px solid var(--nhr-line-light)', borderRadius: 'var(--radius-lg)'
+              }}>
+                <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Badge tone="soft">{a.department}</Badge>
+                  <Badge tone="outline">{a.workplace}</Badge>
+                  {a.sponsorship && a.sponsorship.available && <Badge tone="outline">Sponsorship considered</Badge>}
+                </span>
+                <span style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-.01em', color: 'var(--nhr-text-dark)' }}>{a.title}</span>
+                <span style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 13, color: 'var(--nhr-text-muted-ink)' }}>
+                  <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Icon name="MapPin" size={14} />{a.location}</span>
+                  <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Icon name="Wallet" size={14} />{JA.salaryLabel(a)}</span>
+                  <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><Icon name="Clock" size={14} />{a.employmentType}</span>
+                </span>
+                <span style={{ fontSize: 14, lineHeight: 1.6, color: '#3B4747', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.summary}</span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto', paddingTop: 6 }}>
+                  <span style={{ fontSize: 12, color: 'var(--nhr-text-muted-ink)' }}>{a.closingAt ? 'Closes ' + window.advDate(a.closingAt) : 'Open until filled'}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: 'var(--nhr-turquoise-ink)' }}>View role <Icon name="ArrowRight" size={15} /></span>
+                </span>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <Card tone="light" padding={32} style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+            <Icon name="SearchX" size={26} style={{ color: 'var(--nhr-turquoise-ink)' }} />
+            <span style={{ fontSize: 16, fontWeight: 700 }}>{all.length ? 'No roles match your search' : 'No open roles right now'}</span>
+            <span style={{ fontSize: 14, color: 'var(--nhr-text-muted-ink)' }}>{all.length ? 'Try a different search or clear the filters.' : 'Check back soon — new roles are posted here first.'}</span>
+            {all.length > 0 && <Button size="sm" variant="secondary" tone="light" onClick={() => { setQ(''); setDept(''); setWp(''); }}>Clear filters</Button>}
+          </Card>
+        )}
+      </main>
+    </React.Fragment>
+  );
+}
+
+function ApplyForm({ advert: a }) {
+  const [f, setF] = React.useState({ firstName: '', lastName: '', email: '', phone: '', cvName: '', coverNote: '', answers: {}, needsSponsorship: false, consent: false });
+  const [errors, setErrors] = React.useState({});
+  const [done, setDone] = React.useState(null);
+  const [fail, setFail] = React.useState('');
+  const set = (k, v) => setF(p => Object.assign({}, p, { [k]: v }));
+  if (a.status !== 'Published') {
+    return (
+      <Card tone="light" padding={22} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <span style={{ fontSize: 17, fontWeight: 800 }}>Applications closed</span>
+        <span style={{ fontSize: 14, color: 'var(--nhr-text-muted-ink)', lineHeight: 1.6 }}>This role is no longer taking applications. Take a look at our other open roles.</span>
+        <Button href="#" variant="secondary" tone="light" size="sm">See open roles</Button>
+      </Card>
+    );
+  }
+  function submit(e) {
+    e.preventDefault(); setFail('');
+    const er = {};
+    if (!f.firstName.trim()) er.firstName = 'Enter your first name.';
+    if (!f.lastName.trim()) er.lastName = 'Enter your last name.';
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim())) er.email = 'Enter a valid email address.';
+    if (!f.cvName) er.cv = 'Attach your CV.';
+    (a.questions || []).forEach(q => { if (q.required && !String(f.answers[q.id] || '').trim()) er['q' + q.id] = 'Please answer this question.'; });
+    if (!f.consent) er.consent = 'Please confirm you have read how we use your data.';
+    setErrors(er);
+    if (Object.keys(er).length) { const first = document.querySelector('[aria-invalid="true"]'); if (first) first.focus(); return; }
+    const r = JA.apply(a.id, Object.assign({}, f, { channel: 'careers' }));
+    if (r.error) return setFail(r.error);
+    setDone(f.firstName);
+  }
+  if (done) {
+    return (
+      <Card tone="light" padding={24} style={{ display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'flex-start' }}>
+        <span style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--nhr-soft-turquoise)', color: 'var(--nhr-turquoise-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="Check" size={24} /></span>
+        <span role="status" style={{ fontSize: 19, fontWeight: 800, color: 'var(--nhr-text-dark)' }}>Thanks, {done} — application received</span>
+        <span style={{ fontSize: 14, color: 'var(--nhr-text-muted-ink)', lineHeight: 1.6 }}>Your application has gone straight to the hiring team. They will review it and contact you at {f.email}{a.closingAt ? ' after the closing date of ' + window.advDate(a.closingAt) : ''}.</span>
+        <Button href="#" variant="secondary" tone="light" size="sm">See other roles</Button>
+      </Card>
+    );
+  }
+  return (
+    <Card tone="light" padding={22} as="form" onSubmit={submit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 14 }} aria-labelledby="apply-h">
+      <span id="apply-h" style={{ fontSize: 19, fontWeight: 800, letterSpacing: '-.01em', color: 'var(--nhr-text-dark)' }}>Apply for this role</span>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <Input tone="light" label="First name" required value={f.firstName} onChange={e => set('firstName', e.target.value)} error={errors.firstName} />
+        <Input tone="light" label="Last name" required value={f.lastName} onChange={e => set('lastName', e.target.value)} error={errors.lastName} />
+      </div>
+      <Input tone="light" label="Email" type="email" required value={f.email} onChange={e => set('email', e.target.value)} error={errors.email} />
+      <Input tone="light" label="Phone" type="tel" value={f.phone} onChange={e => set('phone', e.target.value)} />
+      <label style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--nhr-text-dark)' }}>CV <span style={{ color: 'var(--nhr-turquoise-ink)' }}>*</span></span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 12, border: '1px dashed ' + (errors.cv ? 'var(--nhr-danger)' : 'var(--nhr-line-light)'), borderRadius: 'var(--radius-btn)', background: 'var(--nhr-light)', cursor: 'pointer' }}>
+          <Icon name={f.cvName ? 'FileCheck2' : 'Upload'} size={18} style={{ color: 'var(--nhr-turquoise-ink)' }} />
+          <span style={{ fontSize: 13.5, color: f.cvName ? 'var(--nhr-text-dark)' : 'var(--nhr-text-muted-ink)', flex: 1, minWidth: 0 }}>{f.cvName || 'Upload PDF or Word (max 5MB)'}</span>
+          <input type="file" accept=".pdf,.doc,.docx" aria-invalid={errors.cv ? 'true' : undefined} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
+            onChange={e => { const file = e.target.files && e.target.files[0]; if (!file) return; if (file.size > 5 * 1024 * 1024) { setErrors(p => Object.assign({}, p, { cv: 'That file is over 5MB.' })); return; } set('cvName', file.name); setErrors(p => Object.assign({}, p, { cv: '' })); }} />
+        </span>
+        {errors.cv && <span role="alert" style={{ fontSize: 12, color: 'var(--nhr-danger)' }}>{errors.cv}</span>}
+      </label>
+      {(a.questions || []).map(q => q.type === 'yesno' ? (
+        <div key={q.id} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <Select tone="light" label={q.text + (q.required ? ' *' : '')} placeholder="Choose…" value={f.answers[q.id] || ''} options={['Yes', 'No']}
+            onChange={e => set('answers', Object.assign({}, f.answers, { [q.id]: e.target.value }))} />
+          {errors['q' + q.id] && <span role="alert" style={{ fontSize: 12, color: 'var(--nhr-danger)' }}>{errors['q' + q.id]}</span>}
+        </div>
+      ) : (
+        <Input key={q.id} tone="light" label={q.text} required={q.required} value={f.answers[q.id] || ''} error={errors['q' + q.id]}
+          onChange={e => set('answers', Object.assign({}, f.answers, { [q.id]: e.target.value }))} />
+      ))}
+      <Input tone="light" label="Anything you'd like to add?" multiline rows={3} value={f.coverNote} onChange={e => set('coverNote', e.target.value)} />
+      {a.sponsorship && a.sponsorship.available && (
+        <Checkbox tone="light" label="I will need visa sponsorship to work in the UK" checked={f.needsSponsorship} onChange={e => set('needsSponsorship', e.target.checked)} />
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <Checkbox tone="light" checked={f.consent} onChange={e => set('consent', e.target.checked)}
+          label="I agree to my details being used for this application" />
+        <span style={{ fontSize: 11.5, lineHeight: 1.5, color: 'var(--nhr-text-muted-ink)' }}>{COMPANY} keeps unsuccessful applications for 6 months, then deletes them.</span>
+        {errors.consent && <span role="alert" style={{ fontSize: 12, color: 'var(--nhr-danger)' }}>{errors.consent}</span>}
+      </div>
+      {fail && <span role="alert" style={{ fontSize: 13, color: 'var(--nhr-danger)', fontWeight: 600 }}>{fail}</span>}
+      <Button type="submit" fullWidth iconLeft={<Icon name="Send" size={16} />}>Submit Application</Button>
+      <span style={{ fontSize: 11.5, color: 'var(--nhr-text-muted-ink)', textAlign: 'center' }}>Applications are handled securely by NHR Solution on behalf of {COMPANY}.</span>
+    </Card>
+  );
+}
+
+function JobDetail({ advertRef }) {
+  const a = JA.get(advertRef);
+  React.useEffect(() => {
+    if (!a) return;
+    JA.recordView(a.id, 'careers');
+    document.title = a.title + ' — Careers at ' + COMPANY;
+    /* Structured data for Google for Jobs, only while the advert is live. */
+    let tag = document.getElementById('job-ld');
+    if (a.status === 'Published') {
+      if (!tag) { tag = document.createElement('script'); tag.type = 'application/ld+json'; tag.id = 'job-ld'; document.head.appendChild(tag); }
+      tag.textContent = JSON.stringify(JA.jobPostingSchema(a, COMPANY));
+    } else if (tag) tag.remove();
+    return () => { const t = document.getElementById('job-ld'); if (t) t.remove(); document.title = 'Careers — ' + COMPANY; };
+  }, [advertRef]);
+  if (!a || a.archived || a.visibility === 'Internal only' || (a.status !== 'Published' && a.status !== 'Closed')) {
+    return (
+      <main className="cr-wrap" style={{ padding: '60px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+        <span style={{ fontSize: 22, fontWeight: 800 }}>This role isn't available</span>
+        <span style={{ color: 'var(--nhr-text-muted-ink)' }}>It may have been filled or removed.</span>
+        <Button href="#" size="sm">See open roles</Button>
+      </main>
+    );
+  }
+  return (
+    <main className="cr-wrap" style={{ padding: '24px 24px 64px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <a href="#" style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--nhr-turquoise-ink)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="ArrowLeft" size={15} /> All roles</a>
+      <div className="cr-detail">
+        <div style={{ background: 'var(--nhr-white)', border: '1px solid var(--nhr-line-light)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
+          <window.AdvertPreview advert={a} company={COMPANY} />
+        </div>
+        <div className="cr-apply" id="apply" style={{ scrollMarginTop: 16 }}><ApplyForm advert={a} /></div>
+      </div>
+      {a.status === 'Published' && (
+        <div className="cr-applybar" style={{ position: 'sticky', bottom: 0, margin: '0 -16px -64px', padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))', background: 'rgba(255,255,255,.94)', backdropFilter: 'blur(10px)', borderTop: '1px solid var(--nhr-line-light)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--nhr-text-dark)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.title}</span>
+            <span style={{ fontSize: 12, color: 'var(--nhr-text-muted-ink)' }}>{JA.salaryLabel(a)}</span>
+          </span>
+          <Button size="sm" onClick={() => document.getElementById('apply').scrollIntoView({ behavior: 'smooth' })}>Apply now</Button>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function Careers() {
+  const hash = useHash();
+  return (
+    <React.Fragment>
+      <CareersHeader />
+      {hash ? <JobDetail key={hash} advertRef={hash} /> : <JobList />}
+      <footer style={{ borderTop: '1px solid var(--nhr-line-light)', background: 'var(--nhr-white)' }}>
+        <div className="cr-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '20px 24px', fontSize: 12.5, color: 'var(--nhr-text-muted-ink)' }}>
+          <span>© {new Date().getFullYear()} {COMPANY}. An equal opportunities employer.</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>Recruitment by <strong style={{ color: 'var(--nhr-text-dark)' }}>NHR Solution</strong></span>
+        </div>
+      </footer>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Careers />);
+</script>
+</body></html>

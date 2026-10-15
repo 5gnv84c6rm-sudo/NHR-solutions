@@ -48,7 +48,7 @@ function CandidateDrawer({ data, candidateId, onClose }) {
 
   return (
     <Drawer open onClose={onClose} title={c.name}
-      subtitle={c.vacancyTitle + ' · applied ' + window.shortDate(c.appliedAt)} width={660}>
+      subtitle={c.vacancyTitle + ' · applied ' + window.shortDate(c.appliedAt) + (c.advertRef ? ' via advert ' + c.advertRef : '')} width={660}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
         <Card tone="dark" padding={16} style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
           <window.CandidateAvatar candidate={c} size={46} />
@@ -136,6 +136,8 @@ function CandidateDrawer({ data, candidateId, onClose }) {
             </div>
           </DashboardCard>
         )}
+
+        {window.CandidateEmailsPanel && <window.CandidateEmailsPanel candidate={c} />}
 
         <DashboardCard title={'Notes (' + ((c.notes || []).length) + ')'} padding={16}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -463,6 +465,12 @@ function RecruitmentScreen() {
   const [openId, setOpenId] = React.useState(null);
   const [adding, setAdding] = React.useState(false);
   const canWrite = data.S.can('employees.write');
+  /* Job Adverts and other modules open a candidate here by id. */
+  React.useEffect(() => {
+    const go = e => { setView('Pipeline'); setOpenId(e.detail); };
+    window.addEventListener('nhr-open-candidate', go);
+    return () => window.removeEventListener('nhr-open-candidate', go);
+  }, []);
 
   const active = data.candidates.filter(c => data.REC.STAGES.indexOf(c.stage) > -1).length;
   const interviews = data.candidates.reduce((n, c) => n + (c.interviews || []).filter(iv => new Date(iv.date) >= new Date(new Date().toDateString())).length, 0);

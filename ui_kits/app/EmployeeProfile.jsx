@@ -386,6 +386,7 @@ function EmployeeProfile({ employeeId, onBack, onEdit }) {
               { label: 'Set to Active', icon: 'CircleCheck', onClick: () => S.setStatus(employee.id, 'Active') },
               { label: 'Set to On Leave', icon: 'Plane', onClick: () => S.setStatus(employee.id, 'On Leave') },
               { label: 'Set to Inactive', icon: 'CircleSlash', onClick: () => S.setStatus(employee.id, 'Inactive') },
+              ...(window.openJobAdvert && S.can('employees.write') ? [{ label: 'Advertise this role', icon: 'Megaphone', onClick: () => window.openJobAdvert({ employeeId: employee.id }) }] : []),
               { divider: true, key: 'd1' },
               { label: 'Archive employee', icon: 'Archive', danger: true, onClick: () => { S.archive(employee.id); onBack && onBack(); } }
             ]} />

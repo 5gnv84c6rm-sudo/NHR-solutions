@@ -23,6 +23,7 @@ a screen disagrees with the prototype after migration, the migration is wrong.
 | `migrations/0008_rls_policies.sql` | Every policy, column grants, and a completeness assertion |
 | `migrations/0009_functions_and_views.sql` | Access token hook, working days, leave balance, Bradford, RIDDOR, derived-status views, dashboard aggregate, cron jobs |
 | `migrations/0010_storage.sql` | Five private buckets and their policies |
+| `migrations/0016_job_adverts.sql` | Job adverts and their event history, backdating and publishing rules (enforced by trigger), backdated applications, candidate email log and templates, the public careers view and `apply_to_job_advert()`, the "application received" email trigger |
 | `seed.sql` | 2025/26 tax data for rUK and Scotland, 2026 bank holidays for all three nations, demo tenant with the prototype's 12 employees |
 
 ## Running it

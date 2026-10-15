@@ -16,6 +16,7 @@ const APP_NAV = [
   { label: 'Performance', icon: 'Target' },
   { label: 'Expenses', icon: 'Receipt' },
   { label: 'Recruitment', icon: 'UserPlus' },
+  { label: 'Job Adverts', icon: 'Megaphone' },
   { label: 'Health & Safety', icon: 'HardHat' },
   { label: 'Training', icon: 'GraduationCap' },
   { label: 'Wellbeing', icon: 'HeartHandshake' },
@@ -266,6 +267,7 @@ function AppWindow({ compact = false, initial = 'Overview', height = 620, gated 
         <main id="app-main" tabIndex={-1} style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', padding: compact ? 16 : (vp.isMobile ? 16 : 24), background: 'var(--nhr-dark)', outline: 'none' }}>
           {locked ? <ModuleLocked name={active} onChange={force} /> : <Screen compact={compact} name={active} />}
         </main>
+        {!compact && window.CandidateMailToaster && <window.CandidateMailToaster />}
       </div>
     </div>
   );

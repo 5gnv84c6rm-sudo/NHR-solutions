@@ -169,6 +169,7 @@ window.APP_SCREENS = {
   Performance: (props) => React.createElement(window.PerformanceScreen, props),
   Expenses: (props) => React.createElement(window.ExpensesScreen, props),
   Recruitment: (props) => React.createElement(window.RecruitmentScreen, props),
+  'Job Adverts': (props) => React.createElement(window.JobAdvertsScreen, props),
   Training: (props) => React.createElement(window.TrainingScreen, props),
   'Health & Safety': (props) => React.createElement(window.SafetyScreen, props),
   eLearning: (props) => React.createElement(window.ELearningScreen, props),

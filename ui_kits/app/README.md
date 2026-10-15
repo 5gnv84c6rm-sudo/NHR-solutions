@@ -53,3 +53,45 @@ Permissions live in one `PERMISSIONS` map keyed by role; the UI asks `EmployeeSt
 ## Notes
 
 All figures, names, amounts and documents are illustrative placeholders. Charts are CSS/DOM with a single turquoise series — no chart library. Uploaded files exist only in the browser session.
+
+## Job Adverts module — what actually works
+
+Files: `jobAdvertStore.js` (data layer), `JobAdvertsModule.jsx` (list, cards, editor), `JobAdvertsScreens.jsx` (detail, preview, internal board, apply/refer forms, performance, screen), `job-adverts.html` (entry), `careers.html` (public hosted careers page).
+
+An advert is the candidate-facing copy of a vacancy. The vacancy in `RecruitmentStore` stays the hiring record; the advert holds the copy, salary display, screening questions, channels and approval state.
+
+- **Write** — five-step editor (Role, Description, Screening, Publishing, Review) with per-step validation, Save Draft, and a live candidate preview.
+- **Start faster** — copy an existing employee's role (title, department, location, hours, manager; salary only if the viewer may read payroll), or advertise an existing vacancy.
+- **Quality checks** — blocking checks (title, location, summary, essential criteria, closing date, channels) and warnings (no salary, no manager, wording). Inclusive-language check flags age, gender and nationality-coded words with suggested replacements.
+- **Right to work and sponsorship** — right-to-work statement applied to every advert; sponsorship flag with SOC code, and a warning when the salary is below the Skilled Worker general threshold (£41,700).
+- **Approval** — Managers write and submit; HR Admin / Super Admin approve and publish, or return to draft with a note. Nobody approves their own submission.
+- **Publish** — creates (or reopens) the linked vacancy in Recruitment. Pause puts the vacancy on hold; a filled or closed vacancy, or a passed closing date, closes the advert automatically. Closed adverts can be extended and republished.
+- **Apply** — the careers page, the internal job board and "Log Application" all call `JobAdvertStore.apply`, which creates a Recruitment candidate with the channel as its source and screening answers as a note. Knock-out answers are flagged for a person to review, never auto-rejected. Duplicate applications are blocked.
+- **Employees** — hiring manager is an employee record; internal applications and referrals are logged on the employee's activity; Employee role sees only the internal job board; "Advertise this role" on an employee profile opens a pre-filled advert.
+- **Recruitment** — each vacancy shows "Create Advert" or its advert status; candidates show which advert they came from; Job Adverts opens a candidate straight in the pipeline.
+- **Performance** — views and applications by channel, conversion, days live; CSV export; Google for Jobs `JobPosting` structured data on the careers page.
+
+### Backdating (HR Admin and Super Admin only, always audit-logged)
+
+- **Posted date** on an advert can be set in the past. Publishing logs "Posted date backdated to …" and the linked vacancy takes the same date.
+- **Record a past advert** saves an advert that already ran (posted and closing dates both in the past) as Closed, with "Recorded retrospectively". Nothing is posted anywhere.
+- **Record Past Application** / **Log Application** take a *Date received*. It cannot be in the future or before the advert's posted date; the note records who entered it and when.
+- **Change date received** (calendar icon on the advert's Candidates tab) corrects an existing application and notes the old date.
+- Backdated applications never trigger automatic emails.
+
+The same rules are enforced in the database by `supabase/migrations/0016_job_adverts.sql`, so a modified client cannot get round them.
+
+### Automated candidate emails (`candidateMailStore.js`, `JobAdvertsEmails.jsx`)
+
+Moving a candidate in Recruitment sends the matching email: application received, interview invitation (with the booked date, format and interviewer), second interview, job offer (salary and start date), welcome on hire, and an optional rejection. Each template is **Send automatically**, **Check before sending** or **Off**, and the wording is editable with merge fields. Offers default to *Check before sending*. Each stage email goes once per candidate.
+
+Job Adverts › **Candidate emails** has the outbox (review, edit, send, discard, retry) and the templates. Every candidate in Recruitment has an Emails panel and an *Email candidate* button.
+
+Delivery: on the live platform emails go through the `send-candidate-email` Edge Function (Resend) and are logged in `candidate_emails`. In the demo workspace they are written and logged but marked *Not sent*. Public careers-page applications get their acknowledgement from a database trigger, because the applicant has no account.
+
+```js
+JobAdvertStore.reset();       // back to the seeded adverts
+CandidateMailStore.reset();   // empty outbox, standard templates
+```
+
+Job board channels (Indeed, LinkedIn, Totaljobs, Reed, DWP Find a job) are recorded as posting destinations; sending the feed to each board belongs in Integrations once a backend exists.

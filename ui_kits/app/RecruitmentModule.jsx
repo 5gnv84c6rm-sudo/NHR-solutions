@@ -311,6 +311,12 @@ function Vacancies({ data, onOpen }) {
                 <Badge tone={VAC_TONE[v.status] || 'dark'}>{v.status}</Badge>
                 {canWrite && (
                   <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {window.JobAdvertStore && (() => {
+                      const adv = window.JobAdvertStore.list({ includeArchived: false }).find(x => x.vacancyId === v.id);
+                      return adv
+                        ? <Button size="xs" variant="secondary" tone="dark" iconLeft={<Icon name="Megaphone" size={13} />} onClick={() => window.openJobAdvert({ advertId: adv.id })}>{'Advert · ' + adv.status}</Button>
+                        : <Button size="xs" variant="secondary" tone="dark" iconLeft={<Icon name="Megaphone" size={13} />} onClick={() => window.openJobAdvert({ vacancyId: v.id })}>Create Advert</Button>;
+                    })()}
                     {v.status === 'Draft' && <Button size="xs" onClick={() => { REC.updateVacancy(v.id, { status: 'Open', postedAt: new Date().toISOString().slice(0, 10) }); refresh(); }}>Post</Button>}
                     {v.status === 'Open' && <Button size="xs" variant="secondary" tone="dark" onClick={() => { REC.updateVacancy(v.id, { status: 'On hold' }); refresh(); }}>Hold</Button>}
                     {(v.status === 'On hold' || v.status === 'Closed') && <Button size="xs" variant="secondary" tone="dark" onClick={() => { REC.updateVacancy(v.id, { status: 'Open' }); refresh(); }}>Reopen</Button>}

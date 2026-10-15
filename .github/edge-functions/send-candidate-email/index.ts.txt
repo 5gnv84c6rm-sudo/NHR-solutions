@@ -1,0 +1,135 @@
+// Supabase Edge Function: send-candidate-email
+//
+// Sends recruitment emails to candidates — application received, interview
+// invitation, offer, welcome, unsuccessful — through Resend, and records each
+// one in public.candidate_emails for the audit trail.
+//
+// Two callers:
+//   1. The app (verify_jwt ON). A signed-in admin, HR or manager sends an
+//      email they have reviewed, or one the pipeline sent automatically.
+//      Tenant and role come from the caller's JWT, never the request body.
+//   2. The database trigger on candidates (0016_job_adverts.sql) for the
+//      "application received" acknowledgement. Postgres has no user token,
+//      so that call carries x-nhr-notify-secret instead — the same shared
+//      secret notify-submission uses.
+//
+// Kept as .ts.txt on purpose (see .github/edge-functions/README.md). To
+// deploy: copy to supabase/functions/send-candidate-email/index.ts, run
+//   supabase functions deploy send-candidate-email
+// then delete the copy.
+//
+// Secrets: RESEND_API_KEY, NOTIFY_SECRET (shared with notify-submission),
+//          CANDIDATE_MAIL_FROM optional, e.g. "Northgate Careers <careers@yourdomain>"
+//          — Resend only sends from a verified domain.
+
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.0';
+
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
+const NOTIFY_SECRET = Deno.env.get('NOTIFY_SECRET') ?? '';
+const MAIL_FROM = Deno.env.get('CANDIDATE_MAIL_FROM') ?? 'NHR Solution <onboarding@resend.dev>';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+// A recruiter sending more than this in an hour is far more likely to be a
+// leaked token than a busy afternoon.
+const HOURLY_LIMIT_PER_TENANT = 200;
+const SENDER_ROLES = ['super_admin', 'hr_admin', 'manager'];
+
+const cors = {
+  'Access-Control-Allow-Origin': 'https://nhrsolutions.net',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+
+const esc = (v: unknown) =>
+  String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+const emailOk = (v: unknown) => typeof v === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v) && v.length < 255;
+
+function receivedEmail(r: Record<string, unknown>) {
+  const subject = `We have received your application — ${r.job_title ?? 'your application'}`;
+  const text = `Hi ${r.first_name},\n\nThank you for applying for the ${r.job_title} role at ${r.company}. ` +
+    `We have received your application and the hiring team will review it.\n\n` +
+    `You don't need to do anything else for now — we'll be in touch either way.\n\nKind regards,\nThe ${r.company} hiring team`;
+  return { subject, text };
+}
+
+function textToHtml(text: string) {
+  return '<div style="font:15px/1.65 -apple-system,Segoe UI,Roboto,sans-serif;color:#101515;max-width:600px">' +
+    esc(text).split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('') + '</div>';
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+  if (!RESEND_API_KEY) return json({ error: 'RESEND_API_KEY is not set' }, 500);
+
+  const admin = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch { return json({ error: 'Bad request' }, 400); }
+
+  let tenantId: string; let sentBy: string | null = null; let to: string; let subject: string;
+  let text: string; let html: string | undefined; let replyTo: string | undefined;
+  let template = String(body.template ?? 'custom'); let candidateId: string | null = null;
+
+  const secret = req.headers.get('x-nhr-notify-secret');
+  if (secret) {
+    // ---- database trigger: application received
+    if (!NOTIFY_SECRET || secret !== NOTIFY_SECRET) return json({ error: 'Forbidden' }, 403);
+    const r = (body.record ?? {}) as Record<string, unknown>;
+    if (!emailOk(r.email)) return json({ skipped: 'no valid email' });
+    tenantId = String(r.tenant_id); candidateId = String(r.id); to = String(r.email);
+    ({ subject, text } = receivedEmail(r)); template = 'received';
+    replyTo = emailOk(r.reply_to) ? String(r.reply_to) : undefined;
+  } else {
+    // ---- signed-in staff member
+    const auth = req.headers.get('Authorization') ?? '';
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
+    const { data: u, error } = await userClient.auth.getUser();
+    if (error || !u?.user) return json({ error: 'Not signed in' }, 401);
+    const meta = (u.user.app_metadata ?? {}) as Record<string, unknown>;
+    tenantId = String(meta.tenant_id ?? '');
+    const role = String(meta.role ?? '');
+    if (!tenantId) return json({ error: 'No workspace on this account' }, 403);
+    if (!SENDER_ROLES.includes(role)) return json({ error: 'Your role cannot email candidates' }, 403);
+    sentBy = u.user.id;
+
+    to = String(body.to ?? ''); subject = String(body.subject ?? '').slice(0, 200);
+    text = String(body.text ?? '').slice(0, 20000);
+    html = typeof body.html === 'string' ? String(body.html).slice(0, 60000) : undefined;
+    replyTo = emailOk(body.reply_to) ? String(body.reply_to) : undefined;
+    if (!emailOk(to) || !subject || !text) return json({ error: 'A valid recipient, subject and message are required' }, 400);
+
+    // When the candidate exists in the database, the recipient must be theirs
+    // and in the caller's workspace — the function is not an open relay.
+    if (typeof body.candidate_id === 'string' && /^[0-9a-f-]{36}$/.test(body.candidate_id)) {
+      const { data: c } = await admin.from('candidates').select('id, tenant_id, email').eq('id', body.candidate_id).maybeSingle();
+      if (!c || c.tenant_id !== tenantId) return json({ error: 'Candidate not found' }, 404);
+      if (String(c.email).toLowerCase() !== to.toLowerCase()) return json({ error: 'Recipient does not match the candidate' }, 400);
+      candidateId = c.id;
+    }
+
+    const since = new Date(Date.now() - 3600e3).toISOString();
+    const { count } = await admin.from('candidate_emails').select('id', { count: 'exact', head: true })
+      .eq('tenant_id', tenantId).gte('created_at', since);
+    if ((count ?? 0) >= HOURLY_LIMIT_PER_TENANT) return json({ error: 'Hourly email limit reached — try again later' }, 429);
+  }
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ from: MAIL_FROM, to: [to], reply_to: replyTo, subject, text, html: html ?? textToHtml(text) })
+  });
+  const detail = await res.json().catch(() => ({}));
+
+  await admin.from('candidate_emails').insert({
+    tenant_id: tenantId, candidate_id: candidateId, template, to_email: to, subject,
+    status: res.ok ? 'sent' : 'failed', provider_id: (detail as { id?: string }).id ?? null,
+    error: res.ok ? null : JSON.stringify(detail).slice(0, 500), sent_by: sentBy
+  });
+
+  if (!res.ok) return json({ sent: false, error: 'The email service rejected the message' }, 502);
+  return json({ sent: true, id: (detail as { id?: string }).id });
+});

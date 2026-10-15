@@ -9,6 +9,7 @@ code (see `SETUP.md`). To redeploy with the CLI, copy a function to
 |---|---|---|---|
 | `signup` | off | the website | Creates the account, then provisions the workspace as the service role. Off because the caller has no account yet. |
 | `notify-submission` | off | database triggers | Emails enquiries and demo bookings. Off because Postgres has no Supabase token; authenticity is a shared secret header instead. |
+| `send-candidate-email` | **on** | the app, and the candidates trigger | Recruitment emails to candidates via Resend, logged in `candidate_emails`. Staff calls are checked against the JWT (tenant, role, 200/hour); the trigger's "application received" call uses the `NOTIFY_SECRET` header instead. |
 | `stripe-checkout` | **on** | the app | Starts a Stripe Checkout session. The workspace comes from the caller's token, never the request body. |
 | `stripe-webhook` | off | Stripe | Keeps subscription state in step. Off because Stripe has no Supabase token; authenticity is the Stripe signature, checked before anything is read. |
 | `stripe-portal` | **on** | the app | Opens Stripe's billing portal so customers manage card, invoices and cancellation. |
@@ -20,9 +21,10 @@ control.
 
 | Secret | Used by | Where it comes from |
 |---|---|---|
-| `RESEND_API_KEY` | notify-submission | resend.com |
-| `NOTIFY_SECRET` | notify-submission | must match `app.notify_config.secret` |
+| `RESEND_API_KEY` | notify-submission, send-candidate-email | resend.com |
+| `NOTIFY_SECRET` | notify-submission, send-candidate-email | must match `app.notify_config.secret` |
 | `MAIL_TO` / `MAIL_FROM` | notify-submission | optional; defaults to nhrsolutionltd@gmail.com |
+| `CANDIDATE_MAIL_FROM` | send-candidate-email | e.g. `Northgate Careers <careers@yourdomain>`; must be a domain verified in Resend |
 | `STRIPE_SECRET_KEY` | stripe-checkout, stripe-webhook, stripe-portal | Stripe → Developers → API keys |
 | `STRIPE_WEBHOOK_SECRET` | stripe-webhook | shown when the webhook endpoint is created |
 | `SITE_URL` | stripe-checkout, stripe-portal | `https://nhrsolutions.net` |

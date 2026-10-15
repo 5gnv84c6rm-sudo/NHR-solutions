@@ -111,3 +111,19 @@ img, svg, canvas, table { max-width: 100%; }
 /* Skip link — visible on keyboard focus only. */
 .skip-to-main{position:absolute;left:-9999px;top:0;z-index:300;padding:14px 20px;background:var(--nhr-turquoise,#00E5D4);color:#000;font-family:var(--font-core,system-ui);font-size:14px;font-weight:700;border-radius:0 0 10px 0;text-decoration:none}
 .skip-to-main:focus{left:0}
+
+/* ---------- Job Adverts ---------- */
+@media (max-width: 1024px) {
+  .adv-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .adv-two { grid-template-columns: 1fr !important; }
+  .adv-review { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 700px) {
+  .adv-channels { grid-template-columns: 1fr !important; }
+  .adv-grid { grid-template-columns: 1fr !important; }
+  .filter-bar > * { flex: 1 1 100% !important; }
+}
+@media (max-width: 480px) {
+  .adv-detail-actions { width: 100%; }
+  .adv-detail-actions > * { flex: 1 1 auto; }
+}

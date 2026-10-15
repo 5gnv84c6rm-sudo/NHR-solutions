@@ -1,0 +1,25 @@
+# The working prototype — Phase 0 must not reformat a single line of it.
+# Reformatting would produce a diff across ~120 files and make any real
+# behavioural change in Phase 1 impossible to review.
+ui_kits/
+
+# Owned by the design-system compiler.
+components/
+tokens/
+_ds_bundle.js
+_ds_manifest.json
+_adherence.oxlintrc.json
+support.js
+thumbnail.html
+styles.css
+
+# Generated and vendored
+node_modules/
+dist/
+build/
+coverage/
+pnpm-lock.yaml
+package-lock.json
+screenshots/
+uploads/
+assets/

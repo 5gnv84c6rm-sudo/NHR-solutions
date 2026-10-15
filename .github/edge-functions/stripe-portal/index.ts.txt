@@ -1,0 +1,69 @@
+// Opens Stripe's billing portal so customers manage their own card, invoices
+// and cancellation. Cheaper and safer than rebuilding those screens.
+//
+// Who is calling is checked before configuration, so an unauthenticated
+// request is refused identically whether or not Stripe keys are set.
+
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+
+const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
+const SITE_URL = Deno.env.get('SITE_URL') ?? 'https://nhrsolutions.net';
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+const json = (b: unknown, status = 200) =>
+  new Response(JSON.stringify(b), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+
+  const caller = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } }
+  );
+  const { data: userData } = await caller.auth.getUser();
+  const user = userData?.user;
+  if (!user) return json({ error: 'not_signed_in' }, 401);
+
+  if (!STRIPE_SECRET_KEY) return json({ error: 'STRIPE_SECRET_KEY is not set' }, 500);
+
+  const admin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+
+  const { data: profile } = await admin
+    .from('profiles').select('tenant_id, role').eq('id', user.id).single();
+  if (!profile) return json({ error: 'no_workspace' }, 403);
+  if (!['super_admin', 'hr_admin'].includes(profile.role)) {
+    return json({ error: 'not_permitted', message: 'Only an administrator can manage billing.' }, 403);
+  }
+
+  const { data: tenant } = await admin
+    .from('tenants').select('stripe_customer_id').eq('id', profile.tenant_id).single();
+
+  if (!tenant?.stripe_customer_id) {
+    return json({ error: 'no_customer', message: 'This workspace has no subscription yet.' }, 400);
+  }
+
+  const res = await fetch('https://api.stripe.com/v1/billing_portal/sessions', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      customer: tenant.stripe_customer_id,
+      return_url: `${SITE_URL}/ui_kits/app/billing.html`
+    })
+  });
+  const body = await res.json();
+  if (!res.ok) return json({ error: 'stripe_error', message: body?.error?.message ?? 'Stripe rejected the request' }, 502);
+
+  return json({ url: body.url });
+});

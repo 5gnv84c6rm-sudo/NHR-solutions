@@ -1,0 +1,42 @@
+<!-- @dsCard group="Components" viewport="700x400" name="Product" subtitle="StatTile, DashboardCard, BarChart, ProgressMeter, ActivityItem, DataTable" -->
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Product components</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.544.0/dist/umd/lucide.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>body{margin:0;background:var(--nhr-black);font-family:var(--font-core)}.wrap{padding:22px 24px}.row{display:flex;flex-wrap:wrap;gap:14px;align-items:center}.lbl{font-size:11px;font-family:var(--font-mono);color:var(--text-muted);margin:0 0 8px}</style>
+</head><body><div id="root"></div>
+<script type="text/babel">
+function Icon({name,size=24,strokeWidth=1.75,style}){const lib=(typeof lucide!=='undefined'&&lucide)||{};const node=lib[name]||(lib.icons&&lib.icons[name])||[];return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" style={{flex:'0 0 auto',...style}} aria-hidden="true">{(Array.isArray(node)?node:[]).map((c,i)=>React.createElement(c[0],{key:i,...c[1]}))}</svg>;}
+
+const { StatTile, DashboardCard, BarChart, ProgressMeter, ActivityItem, DataTable, Badge } = window.NHRSolutionDesignSystem_0db691;
+function Demo(){return (<div className="wrap" style={{display:'flex',flexDirection:'column',gap:14}}>
+<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14}}>
+<StatTile label="Business Analytics" value="£182.4k" delta="+24.8%" caption="vs last month" icon={<Icon name="BarChart3" size={18}/>}/>
+<StatTile label="Team Productivity" value="98.6%" delta="+3.2%" caption="this week" icon={<Icon name="TrendingUp" size={18}/>}/>
+<StatTile label="Open Tasks" value="34" delta="-8" direction="down" caption="vs last week" icon={<Icon name="ListChecks" size={18}/>}/>
+</div>
+<div style={{display:'grid',gridTemplateColumns:'1.3fr 1fr',gap:14}}>
+<DashboardCard title="Attendance This Week" action={<Badge tone="dark">Live</Badge>}>
+<BarChart unit="%" height={120} data={[{label:'Mon',value:96},{label:'Tue',value:98},{label:'Wed',value:94},{label:'Thu',value:97},{label:'Fri',value:91},{label:'Sat',value:14,muted:true}]}/>
+</DashboardCard>
+<DashboardCard title="Payroll Run — September">
+<div style={{display:'flex',flexDirection:'column',gap:14}}>
+<ProgressMeter label="Approved" value={78} valueLabel="94 / 120"/>
+<ActivityItem icon={<Icon name="UserPlus" size={16}/>} title="Leah Mensah added" meta="Employees" time="12m"/>
+<ActivityItem icon={<Icon name="FileCheck2" size={16}/>} title="August payslips issued" meta="Payroll" time="2h" divider={false}/>
+</div>
+</DashboardCard>
+</div>
+<DashboardCard title="Employees" padding={16}>
+<DataTable compact columns={[{key:'name',label:'Employee'},{key:'id',label:'ID',mono:true},{key:'dept',label:'Department'},{key:'status',label:'Status'},{key:'pay',label:'Monthly',align:'right',mono:true}]}
+rows={[{name:'Amara Osei',id:'EMP-0148',dept:'Operations',status:<Badge tone="success">Present</Badge>,pay:'£4,280.00'},
+{name:'Daniel Whitfield',id:'EMP-0151',dept:'Finance',status:<Badge tone="warning">Leave</Badge>,pay:'£3,940.00'},
+{name:'Priya Raman',id:'EMP-0163',dept:'People',status:<Badge tone="success">Present</Badge>,pay:'£3,610.00'}]}/>
+</DashboardCard>
+</div>);}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Demo/>);
+</script></body></html>

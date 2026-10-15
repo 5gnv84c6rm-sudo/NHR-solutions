@@ -1,0 +1,90 @@
+/* NHR Solution — website responsive layer.
+
+   Shared by every marketing page. Adds the phone and small-tablet breakpoints
+   the per-page <style> blocks do not cover, plus the overflow guards.
+
+   The mobile site is not the desktop site narrowed: section padding drops,
+   hero type is clamped rather than shrunk proportionally, card grids go to one
+   column with real gaps, and every primary action becomes full width so it
+   lands under a thumb.
+*/
+
+/* ---------- overflow guards ---------- */
+body { overflow-x: hidden; }
+h1, h2, h3, h4, p, span, li, td, th, code, pre, blockquote { overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; }
+img, svg, canvas, table, iframe { max-width: 100%; }
+[style*="display: flex"] > *, [style*="display:flex"] > * { min-width: 0; }
+
+/* ---------- 900px and below ---------- */
+@media (max-width: 900px) {
+  .contact-split, .demo-split, .legal-split { grid-template-columns: 1fr !important; gap: 28px !important; }
+  .legal-nav { position: static !important; }
+  .legal-nav > nav { position: static !important; }
+}
+
+/* ---------- 640px and below: phones ---------- */
+@media (max-width: 640px) {
+  /* Container padding: 48px each side costs a quarter of a 375px screen. */
+  .nhr-container { padding-left: 20px !important; padding-right: 20px !important; }
+
+  /* Section rhythm tightens so a visitor reaches the second section without
+     three screens of scrolling. */
+  section, .nhr-section { padding-top: 56px !important; padding-bottom: 56px !important; }
+
+  /* Every grid to one column, with a gap that still reads as separation. */
+  .grid-2, .grid-3, .grid-4, .grid-5, .split, .stat-row, .logo-strip,
+  .contact-grid, .demo-grid, .footer-grid, .hero-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  /* Hero: clamp the headline rather than letting it scale to 6 lines. */
+  h1 { font-size: clamp(30px, 8.5vw, 40px) !important; line-height: 1.12 !important; }
+  h2 { font-size: clamp(23px, 6.5vw, 30px) !important; }
+
+  /* Primary actions full width, stacked, thumb-height. */
+  .hero-cta { flex-direction: column !important; align-items: stretch !important; }
+  .hero-cta > * { width: 100% !important; }
+
+  /* Footer: the seven-column grid becomes two, which keeps it scannable
+     instead of becoming a 40-item list. */
+  .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 26px 20px !important; }
+}
+
+/* ---------- 420px and below: small phones ---------- */
+@media (max-width: 420px) {
+  .nhr-container { padding-left: 16px !important; padding-right: 16px !important; }
+  .footer-grid { grid-template-columns: 1fr !important; }
+  /* Breadcrumbs wrap rather than scroll a page that has no other scroller. */
+  nav[aria-label="Breadcrumb"] { flex-wrap: wrap !important; row-gap: 4px !important; }
+}
+
+/* ---------- forms ---------- */
+@media (max-width: 640px) {
+  select, input, textarea { font-size: 15px !important; min-height: 48px; }
+  textarea { min-height: 120px; }
+  /* Labels above controls at every width on mobile — no two-column form rows. */
+  form .grid-2, form [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
+}
+
+/* ---------- touch targets ---------- */
+@media (hover: none) and (pointer: coarse) {
+  button, a[role="button"], [role="tab"], summary { min-height: 44px; }
+  nav a { padding-top: 12px; padding-bottom: 12px; }
+}
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* Skip link — visible only on keyboard focus, which is the point. */
+.skip-to-main{position:absolute;left:-9999px;top:0;z-index:200;padding:14px 20px;background:var(--nhr-turquoise,#00E5D4);color:#000;font-family:var(--font-core,system-ui);font-size:14px;font-weight:700;border-radius:0 0 10px 0;text-decoration:none}
+.skip-to-main:focus{left:0}
+main:focus{outline:none}

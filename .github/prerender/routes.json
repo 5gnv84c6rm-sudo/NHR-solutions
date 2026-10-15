@@ -1,0 +1,25 @@
+{
+  "site": "https://nhrsolutions.net",
+  "sourceDir": "ui_kits/website",
+  "gaId": "G-B66G83YGNE",
+  "routes": [
+    {"file": "index.html", "path": "/", "priority": "1.0", "changefreq": "weekly"},
+    {"file": "hr-software.html", "path": "/hr-software/", "priority": "0.9", "changefreq": "monthly"},
+    {"file": "payroll.html", "path": "/payroll/", "priority": "0.9", "changefreq": "monthly"},
+    {"file": "pricing.html", "path": "/pricing/", "priority": "0.9", "changefreq": "monthly"},
+    {"file": "industry-healthcare.html", "path": "/sectors/healthcare/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "calculators.html", "path": "/calculators/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "calc-bradford-factor.html", "path": "/calculators/bradford-factor/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "calc-holiday-entitlement.html", "path": "/calculators/holiday-entitlement/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "calc-take-home-pay.html", "path": "/calculators/take-home-pay/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "calc-hourly-rate.html", "path": "/calculators/hourly-rate/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "calc-notice-period.html", "path": "/calculators/notice-period/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "calc-employee-cost.html", "path": "/calculators/employee-cost/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "calc-overtime.html", "path": "/calculators/overtime/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "calc-payroll-cost.html", "path": "/calculators/payroll-cost/", "priority": "0.8", "changefreq": "monthly"},
+    {"file": "demo.html", "path": "/book-a-demo/", "priority": "0.7", "changefreq": "monthly"},
+    {"file": "about.html", "path": "/about/", "priority": "0.6", "changefreq": "monthly"},
+    {"file": "contact.html", "path": "/contact/", "priority": "0.6", "changefreq": "monthly"},
+    {"file": "legal.html", "path": "/legal/", "priority": "0.3", "changefreq": "yearly"}
+  ]
+}

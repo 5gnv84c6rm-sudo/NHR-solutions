@@ -1,0 +1,26 @@
+:root{
+  /* Shadows — light sections: very soft, low-contrast, cool-tinted */
+  --shadow-xs:0 1px 2px rgba(16,21,21,.05);
+  --shadow-card:0 1px 3px rgba(16,21,21,.04),0 8px 24px -12px rgba(16,21,21,.10);
+  --shadow-card-hover:0 2px 6px rgba(16,21,21,.05),0 18px 40px -16px rgba(16,21,21,.16);
+  --shadow-float:0 24px 60px -20px rgba(16,21,21,.24);
+
+  /* Turquoise glows — the brand's one "effect" */
+  --shadow-glow-btn:0 6px 20px -6px rgba(0,229,212,.55);
+  --shadow-glow-btn-hover:0 10px 28px -6px rgba(0,229,212,.70);
+  --shadow-glow-card:0 0 0 1px rgba(0,229,212,.35),0 18px 44px -20px rgba(0,229,212,.35);
+  --shadow-glow-ambient:0 0 120px 40px rgba(0,229,212,.16);
+  --shadow-inset-hairline:inset 0 1px 0 rgba(255,255,255,.06);
+
+  /* Glass */
+  --blur-nav:blur(18px) saturate(140%); /* @kind other */
+  --glass-dark:rgba(5,5,5,.72);
+  --glass-light:rgba(255,255,255,.72);
+
+  /* Brand dot pattern (logo-derived) */
+  --dot-color:rgba(0,229,212,.28);
+  --dot-size:2px; /* @kind spacing */
+  --dot-gap:22px; /* @kind spacing */
+  --pattern-dots:radial-gradient(var(--dot-color) var(--dot-size),transparent var(--dot-size)); /* @kind other */
+  --pattern-grid:linear-gradient(rgba(0,229,212,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(0,229,212,.07) 1px,transparent 1px); /* @kind other */
+}

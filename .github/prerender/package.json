@@ -1,0 +1,9 @@
+{
+  "name": "nhr-prerender",
+  "private": true,
+  "type": "module",
+  "description": "Renders the marketing pages to static HTML at clean URLs for GitHub Pages.",
+  "dependencies": {
+    "puppeteer": "^24.0.0"
+  }
+}

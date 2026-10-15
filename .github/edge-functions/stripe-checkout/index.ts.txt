@@ -1,0 +1,118 @@
+// Starts a Stripe Checkout session for the signed-in workspace.
+//
+// verify_jwt is on: only a signed-in admin may buy, and the workspace is taken
+// from their token, never from the request body — otherwise anyone could
+// subscribe on someone else's behalf, or attach a card to another tenant.
+//
+// Who is calling is checked before anything else, including configuration, so
+// an unauthenticated request is refused the same way whether or not Stripe
+// keys happen to be set.
+
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+
+const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
+const SITE_URL = Deno.env.get('SITE_URL') ?? 'https://nhrsolutions.net';
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+const json = (b: unknown, status = 200) =>
+  new Response(JSON.stringify(b), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+
+// Stripe's API is form-encoded, so no SDK is needed for these two calls.
+async function stripe(path: string, form: Record<string, string>) {
+  const res = await fetch('https://api.stripe.com/v1/' + path, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams(form)
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(body?.error?.message ?? 'Stripe rejected the request');
+  return body;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+
+  const caller = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } }
+  );
+
+  const { data: userData } = await caller.auth.getUser();
+  const user = userData?.user;
+  if (!user) return json({ error: 'not_signed_in' }, 401);
+
+  if (!STRIPE_SECRET_KEY) return json({ error: 'STRIPE_SECRET_KEY is not set' }, 500);
+
+  let body: { price_id?: string; employee_band?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: 'bad_request' }, 400);
+  }
+  if (!body.price_id) return json({ error: 'price_id is required' }, 400);
+
+  // Service role: the caller's own token cannot read tenants until the access
+  // token hook is registered, and billing must not depend on that.
+  const admin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+
+  const { data: profile } = await admin
+    .from('profiles')
+    .select('tenant_id, role, email, name')
+    .eq('id', user.id)
+    .single();
+
+  if (!profile) return json({ error: 'no_workspace' }, 403);
+  if (!['super_admin', 'hr_admin'].includes(profile.role)) {
+    return json({ error: 'not_permitted', message: 'Only an administrator can change the subscription.' }, 403);
+  }
+
+  const { data: tenant } = await admin
+    .from('tenants')
+    .select('id, name, stripe_customer_id, billing_email')
+    .eq('id', profile.tenant_id)
+    .single();
+
+  if (!tenant) return json({ error: 'no_workspace' }, 403);
+
+  // Reuse the customer so a workspace never ends up with two of them, which
+  // would split its invoices and payment methods.
+  let customerId = tenant.stripe_customer_id;
+  if (!customerId) {
+    const customer = await stripe('customers', {
+      email: tenant.billing_email ?? profile.email,
+      name: tenant.name,
+      'metadata[tenant_id]': tenant.id
+    });
+    customerId = customer.id;
+    await admin.from('tenants').update({ stripe_customer_id: customerId }).eq('id', tenant.id);
+  }
+
+  const session = await stripe('checkout/sessions', {
+    mode: 'subscription',
+    customer: customerId,
+    'line_items[0][price]': body.price_id,
+    'line_items[0][quantity]': '1',
+    // The webhook reads these to know which workspace paid for what.
+    'subscription_data[metadata][tenant_id]': tenant.id,
+    'subscription_data[metadata][employee_band]': body.employee_band ?? '',
+    'metadata[tenant_id]': tenant.id,
+    client_reference_id: tenant.id,
+    allow_promotion_codes: 'true',
+    success_url: `${SITE_URL}/ui_kits/app/billing.html?checkout=success`,
+    cancel_url: `${SITE_URL}/ui_kits/app/billing.html?checkout=cancelled`
+  });
+
+  return json({ url: session.url });
+});

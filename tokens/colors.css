@@ -1,0 +1,63 @@
+:root{
+  /* ---- Base palette (from the logo: black, white, turquoise) ---- */
+  --nhr-black:#000000;
+  --nhr-dark:#050505;
+  --nhr-charcoal:#0D1111;
+  --nhr-surface-dark:#111616;
+  --nhr-surface-dark-2:#161C1C;
+  --nhr-turquoise:#00E5D4;
+  --nhr-turquoise-bright:#3DF0E2;
+  --nhr-turquoise-deep:#00BFB2;
+  --nhr-turquoise-ink:#00706A;
+  --nhr-cyan:#19D9E6;
+  --nhr-soft-turquoise:#D9FFFB;
+  --nhr-white:#FFFFFF;
+  --nhr-light:#F7FAFA;
+  --nhr-light-2:#EDF3F3;
+  --nhr-text-dark:#101515;
+  --nhr-text-light:#F5FFFF;
+  --nhr-text-muted:#8A9998;
+  --nhr-text-muted-ink:#525F5E;
+  --nhr-line-light:#E2EAEA;
+  --nhr-line-dark:rgba(255,255,255,.10);
+  --nhr-line-light-dark:rgba(255,255,255,.10);
+
+  /* ---- Semantic status ---- */
+  --nhr-success:#12C48B;
+  --nhr-warning:#F2B441;
+  --nhr-danger:#F2545B;
+  --nhr-info:#19D9E6;
+
+  /* ---- Semantic aliases: light sections ---- */
+  --surface-page:var(--nhr-white);
+  --surface-subtle:var(--nhr-light);
+  --surface-card:var(--nhr-white);
+  --surface-accent-soft:var(--nhr-soft-turquoise);
+  --text-body:#3B4747;
+  --text-heading:var(--nhr-text-dark);
+  --text-muted:var(--nhr-text-muted);
+  --text-muted-on-light:var(--nhr-text-muted-ink);
+  --text-accent:var(--nhr-turquoise-ink);
+  --border-subtle:var(--nhr-line-light);
+  --border-accent:var(--nhr-turquoise);
+
+  /* ---- Semantic aliases: dark sections ---- */
+  --surface-page-dark:var(--nhr-black);
+  --surface-section-dark:var(--nhr-charcoal);
+  --surface-card-dark:var(--nhr-surface-dark);
+  --surface-card-dark-hover:var(--nhr-surface-dark-2);
+  --text-body-dark:rgba(245,255,255,.72);
+  --text-heading-dark:var(--nhr-text-light);
+  --text-muted-dark:var(--nhr-text-muted);
+  --border-dark:var(--nhr-line-dark);
+
+  /* ---- Interactive ---- */
+  --action-primary-bg:var(--nhr-turquoise);
+  --action-primary-bg-hover:var(--nhr-turquoise-bright);
+  --action-primary-fg:var(--nhr-black);
+  --focus-ring:var(--nhr-turquoise);
+  --link:var(--nhr-turquoise-deep);
+  --link-hover:var(--nhr-text-dark);
+  --link-on-dark:var(--nhr-turquoise);
+  --link-on-dark-hover:var(--nhr-turquoise-bright);
+}

@@ -1,0 +1,113 @@
+/* NHR Solution — platform responsive layer.
+
+   Shared by every app page so the breakpoints cannot drift between screens.
+   Loaded after each page's base <style>, and it only adds rules — nothing here
+   depends on a particular screen being present.
+
+   Phone behaviour is designed rather than scaled:
+   - right-hand drawers become bottom sheets, because a 720px panel sliding
+     from the right on a 375px screen is just a full-screen page with a
+     misleading animation;
+   - section sub-navs scroll horizontally with snap instead of wrapping into
+     four stacked rows that push the content off the first screen;
+   - primary actions go full width at the foot of the header, where a thumb is;
+   - tables become cards (handled in the DataTable component, so every screen
+     inherits it).
+*/
+
+/* ---------- overflow guards ---------- */
+/* Long unbroken strings — references, emails, URLs, mono values — are the most
+   common cause of horizontal overflow on a phone. */
+body { overflow-x: hidden; }
+h1, h2, h3, p, span, td, th, li, code, pre { overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; }
+/* Flex and grid children default to min-content width, which stops a long
+   child from forcing its parent wider than the viewport. */
+[style*="display: flex"] > *, [style*="display:flex"] > * { min-width: 0; }
+img, svg, canvas, table { max-width: 100%; }
+
+/* ---------- tablet ---------- */
+@media (max-width: 1024px) {
+  .dash-two, .dash-three { grid-template-columns: 1fr !important; }
+  .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; }
+}
+
+/* ---------- large phone / small tablet ---------- */
+@media (max-width: 820px) {
+  /* Sub-navs: one scrolling row rather than four wrapped ones. */
+  .nhr-subnav, [aria-current="page"] ~ *, .page-head + div[style*="flex-wrap"] { }
+  .nhr-scrollrow {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .nhr-scrollrow::-webkit-scrollbar { display: none; }
+  .nhr-scrollrow > * { scroll-snap-align: start; flex: 0 0 auto; }
+}
+
+/* ---------- phones ---------- */
+@media (max-width: 700px) {
+  /* Drawer → bottom sheet. Reachable, and the rounded top edge reads as a
+     sheet rather than a truncated desktop panel. */
+  .nhr-drawer {
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 92vh !important;
+    border-left: none !important;
+    border-top: 1px solid var(--border-dark) !important;
+    border-radius: 20px 20px 0 0 !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+  }
+  /* Card padding: 18–24px of chrome on a 375px screen is a quarter of the
+     width, so it comes down rather than the type. */
+  .nhr-card-pad { padding: 16px !important; }
+  /* Stat tiles stay two-up — one-up turns four numbers into a page of
+     scrolling, and these values are short. */
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+}
+
+@media (max-width: 480px) {
+  /* Header actions sit full width at the bottom of the header block. */
+  .page-head { flex-direction: column !important; align-items: stretch !important; }
+  .page-head > div:last-child { width: 100% !important; flex-direction: column !important; }
+  .page-head > div:last-child > * { width: 100% !important; }
+  .page-head h2 { font-size: 22px !important; }
+
+  /* Filter and toolbar rows stack, and every control is full width and
+     thumb-sized rather than a row of 120px stubs. */
+  .nhr-toolbar { flex-direction: column !important; align-items: stretch !important; }
+  .nhr-toolbar > * { width: 100% !important; }
+  select, input[type="text"], input[type="email"], input[type="tel"],
+  input[type="date"], input[type="number"], input[type="search"], textarea {
+    min-height: 46px;
+    font-size: 15px; /* under 16px iOS zooms the page on focus */
+  }
+}
+
+/* ---------- touch targets ---------- */
+/* Applied by input type rather than width, so a desktop user with a
+   touchscreen gets them too. */
+@media (hover: none) and (pointer: coarse) {
+  button, a[role="button"], [role="tab"], summary { min-height: 44px; }
+  button:not(:disabled) { touch-action: manipulation; }
+}
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Skip link — visible on keyboard focus only. */
+.skip-to-main{position:absolute;left:-9999px;top:0;z-index:300;padding:14px 20px;background:var(--nhr-turquoise,#00E5D4);color:#000;font-family:var(--font-core,system-ui);font-size:14px;font-weight:700;border-radius:0 0 10px 0;text-decoration:none}
+.skip-to-main:focus{left:0}

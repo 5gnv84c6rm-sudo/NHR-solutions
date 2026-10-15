@@ -1,0 +1,102 @@
+<!-- @dsCard group="Platform" viewport="1440x900" name="Calculators module" subtitle="Eight calculators that prefill from a real employee record" -->
+<!doctype html><html lang="en" data-theme="dark"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#050505">
+<title>NHR Solution — Platform</title>
+<link rel="stylesheet" href="../../styles.css">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@0.544.0/dist/umd/lucide.js"></script>
+<script src="../../_ds_bundle.js"></script>
+<style>
+body{margin:0;background:var(--nhr-black);overflow-x:hidden}#root{height:100vh}
+input,select,textarea{font-family:var(--font-core)}
+@media (max-width:1100px){.summary-grid{grid-template-columns:repeat(3,1fr) !important}.profile-split{grid-template-columns:1fr !important}}
+@media (max-width:1000px){.leave-split,.att-split,.abs-split,.rota-split,.pay-split,.doc-split,.perf-split,.exp-split,.rec-split,.trn-split,.hs-split{grid-template-columns:1fr !important}.el-grid,.wb-grid,.wb-split,.rp-split{grid-template-columns:1fr !important}.wb-scale{grid-template-columns:repeat(2,1fr) !important}}
+@media (max-width:1000px){.rota-grid{grid-template-columns:repeat(4,minmax(0,1fr)) !important}}
+@media (max-width:620px){.rota-grid{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.cal-grid{gap:3px !important}.cal-grid>div{min-height:64px !important;padding:5px !important}}
+@media (max-width:900px){.table-only{display:none !important}.cards-only{display:block !important}.form-grid{grid-template-columns:1fr !important}.filter-row{grid-template-columns:1fr !important}.step-rail li{min-width:72px}}
+@media (max-width:900px){.auth-split{grid-template-columns:1fr !important;min-height:0 !important}.auth-split>div:first-child{display:none !important}}
+@media (max-width:700px){.summary-grid{grid-template-columns:1fr 1fr !important}.app-sidebar{display:none !important}.page-head>div:last-child{width:100%}.page-head>div:last-child>*{flex:1 1 auto}}
+@media (max-width:480px){.summary-grid{grid-template-columns:1fr 1fr !important;gap:10px !important}.page-head>div:last-child{flex-direction:column}.page-head>div:last-child>*{width:100%}}
+</style>
+<link rel="stylesheet" href="app-responsive.css">
+</head><body>
+<a class="skip-to-main" href="#app-main">Skip to main content</a>
+<div id="root"></div>
+<script type="text/babel" src="../../assets/icons/icon-helper.jsx"></script>
+<script src="employeeStore.js"></script>
+<script src="../website/data.js"></script>
+<script src="../website/supabase-config.js"></script>
+<script src="../website/supabaseClient.js"></script>
+<script src="authStore.js"></script>
+<script src="employeeRecords.js"></script>
+<script src="payrollEngine.js"></script>
+<script src="payrollStore.js"></script>
+<script src="policyStore.js"></script>
+<script src="recruitmentStore.js"></script>
+<script src="safetyStore.js"></script>
+<script src="learningStore.js"></script>
+<script src="integrationStore.js"></script>
+<script src="resourceStore.js"></script>
+<script src="storyStore.js"></script>
+<script src="supportStore.js"></script>
+<script src="wellbeingStore.js"></script>
+<script src="../website/data.js"></script>
+<script type="text/babel" src="../website/Chrome.jsx"></script>
+<script type="text/babel" src="EmployeeShared.jsx"></script>
+<script type="text/babel" src="EmployeeWizard.jsx"></script>
+<script type="text/babel" src="EmployeeImport.jsx"></script>
+<script type="text/babel" src="DetailTabsWork.jsx"></script>
+<script type="text/babel" src="DetailTabsGrowth.jsx"></script>
+<script type="text/babel" src="EmployeeProfile.jsx"></script>
+<script type="text/babel" src="EmployeeList.jsx"></script>
+<script type="text/babel" src="SupportScreens.jsx"></script>
+<script type="text/babel" src="StoriesScreens.jsx"></script>
+<script type="text/babel" src="BillingScreens.jsx"></script>
+<script type="text/babel" src="CalculatorsScreens.jsx"></script>
+<script type="text/babel" src="ResourcesScreens.jsx"></script>
+<script type="text/babel" src="IntegrationsModule.jsx"></script>
+<script type="text/babel" src="IntegrationsScreens.jsx"></script>
+<script type="text/babel" src="IntelligenceModule.jsx"></script>
+<script type="text/babel" src="IntelligenceScreens.jsx"></script>
+<script type="text/babel" src="ReportsModule.jsx"></script>
+<script type="text/babel" src="ReportsScreens.jsx"></script>
+<script type="text/babel" src="WellbeingModule.jsx"></script>
+<script type="text/babel" src="WellbeingScreens.jsx"></script>
+<script type="text/babel" src="ELearningModule.jsx"></script>
+<script type="text/babel" src="ELearningScreens.jsx"></script>
+<script type="text/babel" src="SafetyModule.jsx"></script>
+<script type="text/babel" src="SafetyScreens.jsx"></script>
+<script type="text/babel" src="SafetyRisk.jsx"></script>
+<script type="text/babel" src="TrainingModule.jsx"></script>
+<script type="text/babel" src="TrainingScreens.jsx"></script>
+<script type="text/babel" src="RecruitmentModule.jsx"></script>
+<script type="text/babel" src="RecruitmentScreens.jsx"></script>
+<script type="text/babel" src="ExpensesModule.jsx"></script>
+<script type="text/babel" src="ExpensesScreens.jsx"></script>
+<script type="text/babel" src="PerformanceModule.jsx"></script>
+<script type="text/babel" src="PerformanceScreens.jsx"></script>
+<script type="text/babel" src="DocumentsModule.jsx"></script>
+<script type="text/babel" src="DocumentsScreens.jsx"></script>
+<script type="text/babel" src="PayrollModule.jsx"></script>
+<script type="text/babel" src="PayrollScreens.jsx"></script>
+<script type="text/babel" src="RotaModule.jsx"></script>
+<script type="text/babel" src="RotaScreens.jsx"></script>
+<script type="text/babel" src="AbsenceModule.jsx"></script>
+<script type="text/babel" src="AbsenceScreens.jsx"></script>
+<script type="text/babel" src="AttendanceModule.jsx"></script>
+<script type="text/babel" src="AttendanceScreens.jsx"></script>
+<script type="text/babel" src="LeaveModule.jsx"></script>
+<script type="text/babel" src="LeaveScreens.jsx"></script>
+<script type="text/babel" src="Screens.jsx"></script>
+<script type="text/babel" src="Dashboard.jsx"></script>
+<script type="text/babel" src="Shell.jsx"></script>
+<script type="text/babel" src="AuthGate.jsx"></script>
+<script type="text/babel">
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <AppGate><AppWindow gated initial="Calculators" height={'100%'}/></AppGate>
+);
+</script>
+</body></html>

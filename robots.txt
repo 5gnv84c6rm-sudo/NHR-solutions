@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /ui_kits/app/
+Disallow: /ui_kits/preview.html
+Disallow: /uploads/
+Disallow: /apps/
+Disallow: /supabase/
+
+Sitemap: https://nhrsolutions.net/sitemap.xml

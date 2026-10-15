@@ -1,0 +1,169 @@
+// Receives Stripe events and keeps the workspace's billing state in step.
+//
+// verify_jwt is off because Stripe has no Supabase token. Authenticity is
+// proved by the signature instead, which is checked before anything is read.
+
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+
+const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY') ?? '';
+const STRIPE_WEBHOOK_SECRET = Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? '';
+
+const admin = () => createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+);
+
+// Stripe signs with HMAC-SHA256 over "timestamp.payload".
+async function verify(payload: string, header: string): Promise<boolean> {
+  const parts = Object.fromEntries(
+    header.split(',').map((p) => p.split('=') as [string, string])
+  );
+  const timestamp = parts['t'];
+  const signature = parts['v1'];
+  if (!timestamp || !signature) return false;
+
+  // Reject anything older than five minutes, so a captured request cannot be
+  // replayed later.
+  const age = Math.abs(Date.now() / 1000 - Number(timestamp));
+  if (!Number.isFinite(age) || age > 300) return false;
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(STRIPE_WEBHOOK_SECRET),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const mac = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${timestamp}.${payload}`));
+  const expected = [...new Uint8Array(mac)].map((b) => b.toString(16).padStart(2, '0')).join('');
+
+  // Constant-time compare: a fast fail leaks how much of the signature matched.
+  if (expected.length !== signature.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) diff |= expected.charCodeAt(i) ^ signature.charCodeAt(i);
+  return diff === 0;
+}
+
+async function stripeGet(path: string) {
+  const res = await fetch('https://api.stripe.com/v1/' + path, {
+    headers: { Authorization: `Bearer ${STRIPE_SECRET_KEY}` }
+  });
+  if (!res.ok) throw new Error('Stripe lookup failed: ' + path);
+  return res.json();
+}
+
+// Stripe's statuses, mapped to what the app already understands.
+function tenantStatus(stripeStatus: string): string | null {
+  if (['active', 'trialing'].includes(stripeStatus)) return 'active';
+  if (['past_due', 'unpaid', 'incomplete'].includes(stripeStatus)) return 'past_due';
+  if (['canceled', 'incomplete_expired'].includes(stripeStatus)) return 'cancelled';
+  return null;
+}
+
+async function saveSubscription(sub: Record<string, any>, db: ReturnType<typeof admin>) {
+  let tenantId = sub.metadata?.tenant_id as string | undefined;
+
+  // A subscription created outside checkout has no metadata; fall back to the
+  // customer we already recorded against the workspace.
+  if (!tenantId && sub.customer) {
+    const { data } = await db.from('tenants').select('id').eq('stripe_customer_id', sub.customer).single();
+    tenantId = data?.id;
+  }
+  if (!tenantId) {
+    console.error('no tenant for subscription', sub.id);
+    return;
+  }
+
+  const item = sub.items?.data?.[0];
+  const price = item?.price;
+
+  await db.from('subscriptions').upsert({
+    tenant_id: tenantId,
+    stripe_customer_id: sub.customer,
+    stripe_subscription_id: sub.id,
+    stripe_price_id: price?.id ?? null,
+    employee_band: sub.metadata?.employee_band || null,
+    interval: price?.recurring?.interval ?? null,
+    amount_pence: price?.unit_amount ?? null,
+    currency: (price?.currency ?? 'gbp').toUpperCase(),
+    status: sub.status,
+    current_period_end: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+    cancel_at_period_end: Boolean(sub.cancel_at_period_end),
+    canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null
+  }, { onConflict: 'stripe_subscription_id' });
+
+  const status = tenantStatus(sub.status);
+  if (status) {
+    // The trial clock stops mattering once they are paying.
+    await db.from('tenants').update({ status }).eq('id', tenantId);
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+  if (!STRIPE_WEBHOOK_SECRET || !STRIPE_SECRET_KEY) {
+    return new Response(JSON.stringify({ error: 'Stripe secrets are not set' }), { status: 500 });
+  }
+
+  const payload = await req.text();
+  const signature = req.headers.get('stripe-signature') ?? '';
+  if (!(await verify(payload, signature))) {
+    return new Response('Invalid signature', { status: 400 });
+  }
+
+  const event = JSON.parse(payload);
+  const db = admin();
+
+  // Stripe retries, and can deliver the same event twice. Recording the id
+  // first means the work below happens once.
+  const { error: dupe } = await db.from('billing_events').insert({
+    id: event.id,
+    type: event.type,
+    payload: event.data?.object ?? null
+  });
+  if (dupe) {
+    // Already seen: acknowledge so Stripe stops retrying.
+    return new Response(JSON.stringify({ received: true, duplicate: true }), { status: 200 });
+  }
+
+  try {
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        if (session.subscription) {
+          const sub = await stripeGet('subscriptions/' + session.subscription);
+          if (!sub.metadata?.tenant_id && session.client_reference_id) {
+            sub.metadata = { ...(sub.metadata ?? {}), tenant_id: session.client_reference_id };
+          }
+          await saveSubscription(sub, db);
+        }
+        break;
+      }
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted':
+        await saveSubscription(event.data.object, db);
+        break;
+
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        if (invoice.subscription) {
+          const sub = await stripeGet('subscriptions/' + invoice.subscription);
+          await saveSubscription(sub, db);
+        }
+        break;
+      }
+      default:
+        // Everything else is recorded above and deliberately ignored.
+        break;
+    }
+  } catch (err) {
+    console.error('handler failed', event.type, err);
+    // Let Stripe retry: the event row is removed so the retry is not treated
+    // as a duplicate.
+    await db.from('billing_events').delete().eq('id', event.id);
+    return new Response(JSON.stringify({ error: 'handler_failed' }), { status: 500 });
+  }
+
+  return new Response(JSON.stringify({ received: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+});

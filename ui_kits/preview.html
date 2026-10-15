@@ -1,0 +1,110 @@
+<!-- @dsCard group="Website" viewport="1280x900" name="Preview hub" subtitle="Index of every page and module built so far" -->
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NHR Solution — Preview Hub</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="stylesheet" href="../styles.css">
+<style>
+body{margin:0;background:var(--nhr-black);color:var(--text-body-dark);font-family:var(--font-core);-webkit-font-smoothing:antialiased}
+a{color:var(--nhr-turquoise);text-decoration:none}a:hover{color:var(--nhr-cyan)}
+.wrap{max-width:1180px;margin:0 auto;padding:clamp(28px,5vw,64px) clamp(20px,4vw,40px) 96px}
+.head{position:relative;display:flex;flex-direction:column;gap:18px;padding-bottom:40px;border-bottom:1px solid var(--border-dark)}
+.dots{position:absolute;top:-40px;right:-30px;width:300px;opacity:.35;mix-blend-mode:screen;pointer-events:none}
+h1{margin:0;font-size:clamp(30px,4vw,44px);font-weight:800;letter-spacing:-.03em;color:#fff;text-wrap:pretty}
+h1 em{font-style:normal;color:var(--nhr-turquoise)}
+.lede{margin:0;max-width:620px;font-size:16px;line-height:1.65}
+.stats{display:flex;gap:36px;flex-wrap:wrap;padding-top:6px}
+.stat b{display:block;font-size:26px;font-weight:800;color:#fff;font-family:var(--font-mono)}
+.stat span{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
+h2{margin:56px 0 6px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--nhr-turquoise)}
+.h2sub{margin:0 0 22px;font-size:14px;color:var(--text-muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:16px}
+.card{display:flex;flex-direction:column;gap:10px;padding:20px;border:1px solid var(--border-dark);border-radius:var(--radius-lg);background:rgba(255,255,255,.025);transition:border-color var(--dur-base) var(--ease-out),transform var(--dur-base) var(--ease-out),background var(--dur-base) var(--ease-out)}
+.card:hover{border-color:rgba(0,229,212,.4);background:rgba(0,229,212,.05);transform:translateY(-2px)}
+.card .t{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:700;color:#fff}
+.card p{margin:0;font-size:13.5px;line-height:1.6;color:var(--text-body-dark)}
+.card .go{margin-top:auto;font-size:12.5px;font-weight:700;color:var(--nhr-turquoise)}
+.tag{display:inline-flex;align-items:center;align-self:flex-start;padding:3px 9px;border-radius:999px;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border:1px solid}
+.live{color:var(--nhr-turquoise);border-color:rgba(0,229,212,.3);background:rgba(0,229,212,.08)}
+.gated{color:#F2B441;border-color:rgba(242,180,65,.3);background:rgba(242,180,65,.08)}
+.note{margin-top:56px;display:flex;gap:14px;align-items:flex-start;padding:20px;border:1px solid var(--border-dark);border-radius:var(--radius-lg);background:rgba(255,255,255,.02)}
+.note p{margin:0;font-size:13.5px;line-height:1.7}
+.note strong{color:#fff}
+ul.next{margin:10px 0 0;padding-left:18px;font-size:13.5px;line-height:1.9}
+</style></head><body>
+<div class="wrap">
+<header class="head">
+<img class="dots" src="../assets/pattern-dots-tl.png" alt="" aria-hidden="true">
+<img src="../assets/logo-light.png" alt="NHR Solution" style="width:190px">
+<h1>Everything built <em>so far</em>.</h1>
+<p class="lede">Eight pages and modules across the marketing site and the platform app. Every link opens the real file — forms, filters, calculators and approvals all work.</p>
+<div class="stats">
+<span class="stat"><b>6</b><span>Website pages</span></span>
+<span class="stat"><b>23</b><span>App modules</span></span>
+<span class="stat"><b>8</b><span>Calculators</span></span>
+<span class="stat"><b>30+</b><span>Components</span></span>
+</div>
+</header>
+
+<h2>Marketing website</h2>
+<p class="h2sub">Public pages. Dark/light toggle, mega menu and signup modal work throughout.</p>
+<div class="grid">
+<a class="card" href="website/index.html"><span class="t">Homepage</span><p>Hero dashboard, trust stats, product ecosystem, three showcases, NHR Intelligence, pricing preview, FAQ.</p><span class="tag live">Live</span><span class="go">Open →</span></a>
+<a class="card" href="website/pricing.html"><span class="t">Pricing</span><p>Four plans priced live off an employee-count slider, plus a full compare table. All figures from one data file.</p><span class="tag live">Live</span><span class="go">Open →</span></a>
+<a class="card" href="website/hr-software.html"><span class="t">HR Software</span><p>Product page — twelve tools, three feature showcases with real product UI, benefits, FAQ.</p><span class="tag live">Live</span><span class="go">Open →</span></a>
+<a class="card" href="website/payroll.html"><span class="t">Payroll</span><p>Pay runs, itemised payslip, cost-by-department reporting, and software-versus-managed split.</p><span class="tag live">Live</span><span class="go">Open →</span></a>
+<a class="card" href="website/calculators.html"><span class="t">HR Calculators</span><p>Eight working calculators — Bradford Factor, holiday, salary, hourly rate, notice, employee cost, overtime, payroll. UK 2025/26 maths.</p><span class="tag live">Live</span><span class="go">Open →</span></a>
+<a class="card" href="website/industry-healthcare.html"><span class="t">Healthcare</span><p>Industry template — sector challenges, mandatory-training tracker, compliance sections. Repeatable per sector.</p><span class="tag live">Live</span><span class="go">Open →</span></a>
+</div>
+
+<h2>Platform app</h2>
+<p class="h2sub">Behind a 14-day trial gate. Click <strong style="color:#fff">View Demo</strong> on the signup screen for instant access.</p>
+<div class="grid">
+<a class="card" href="app/index.html"><span class="t">Dashboard</span><p>Signup, sign-in and demo entry, trial countdown, plan locks. Sixteen-screen sidebar with Overview, Attendance and Payroll built.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/employees.html"><span class="t">Employees</span><p>Directory with search and filters, six-step add wizard, CSV import and export, and the full employee record.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/leave.html"><span class="t">Holiday &amp; Leave</span><p>Approval queue with clash detection, month calendar, allowance tracking, three-nation bank holidays.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/attendance.html"><span class="t">Attendance</span><p>Live clock-in board with running timers, week-by-week timesheet approvals, lateness analysis, CSV reports.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/absence.html"><span class="t">Absence</span><p>Bradford Factor league table, return-to-work queue with adjustments, absence patterns and weekday skew.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/rotas.html"><span class="t">Shifts &amp; Rotas</span><p>Team week grid, open-shift cover, swap approvals, coverage against contracted hours. Reads approved leave.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/payroll.html"><span class="t">Payroll</span><p>Gross-to-net pay runs with UK 2025/26 maths, itemised payslips, employee pay details, cost reporting.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/documents.html"><span class="t">Documents</span><p>Library with expiry tracking, missing-document gaps against policy, renewal chase list, company policy sign-off.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/performance.html"><span class="t">Performance</span><p>Review calendar with overdue tracking, goal progress against target dates, rating distribution for calibration.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/expenses.html"><span class="t">Expenses</span><p>Approval queue with receipt and second-approval flags, HMRC mileage rates including the 10,000-mile band, spend reporting.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/recruitment.html"><span class="t">Recruitment</span><p>Five-stage pipeline board, vacancies with auto-close on fill, interview diary. Hiring creates the employee record.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/training.html"><span class="t">Training</span><p>Mandatory-training compliance matrix, certificate expiry and renewals, course library with bulk assignment.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/health-safety.html"><span class="t">Health &amp; Safety</span><p>Incident log that works out RIDDOR reportability, 5×5 risk assessments with review dates, corrective action tracker.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/elearning.html"><span class="t">eLearning</span><p>Five real courses with lessons and an 80% assessment. Passing issues a certificate and closes the training assignment.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/wellbeing.html"><span class="t">Wellbeing</span><p>Anonymous weekly check-in, team results suppressed below five responses, adjustments register that records what — not why.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/reports.html"><span class="t">Reports &amp; Analytics</span><p>Cross-module KPIs, a ten-report library and a custom builder — each source module's permissions and suppression carried over.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/intelligence.html"><span class="t">NHR Intelligence</span><p>Insights calculated from platform data, each showing its working, plus an assistant grounded in a published context snapshot.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/integrations.html"><span class="t">Integrations</span><p>Catalogue with honest build status, scoped connections and field mapping, API keys with one-time reveal, webhooks with sample payloads.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/resources.html"><span class="t">Resources</span><p>Six written guides, six policy and letter templates issuable straight into Documents, dated legal updates with effective dates.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/calculators.html"><span class="t">Calculators</span><p>The eight public calculators, except these load a real employee — and tax comes from the same engine as the payslips.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/billing.html"><span class="t">Plan &amp; Billing</span><p>Bill computed from real headcount using the same price data as the public page. Switching plan genuinely locks and unlocks modules.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/stories.html"><span class="t">Customer Stories</span><p>Reference pipeline with placeholder outlines, metrics traced to live platform data, and a three-part consent gate on publishing.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+<a class="card" href="app/support.html"><span class="t">Support</span><p>Ten-article help centre with search and voting, plus ticket threads that attach your role, plan and workspace shape — never record contents.</p><span class="tag gated">Trial gate</span><span class="go">Open →</span></a>
+</div>
+
+<h2>Employee record</h2>
+<p class="h2sub">Open any employee in the directory. Fourteen tabs, all working against a shared data layer.</p>
+<div class="grid">
+<a class="card" href="app/employees.html"><span class="t">Attendance</span><p>28-day timesheet, clock in/out, per-day and bulk approval, hours-per-week chart.</p><span class="go">Open →</span></a>
+<a class="card" href="app/employees.html"><span class="t">Absence</span><p>Bradford Factor calculated properly, days-lost chart, fit-note flagging, return-to-work completion.</p><span class="go">Open →</span></a>
+<a class="card" href="app/employees.html"><span class="t">Shifts &amp; Rotas</span><p>Week grid with navigation, assign shift, swap requests, open-shift flagging.</p><span class="go">Open →</span></a>
+<a class="card" href="app/employees.html"><span class="t">Performance</span><p>Objectives with movable progress, at-risk flagging, reviews table.</p><span class="go">Open →</span></a>
+<a class="card" href="app/employees.html"><span class="t">Expenses</span><p>Submit with validation, approve or reject, then mark paid. Running totals.</p><span class="go">Open →</span></a>
+<a class="card" href="app/employees.html"><span class="t">Training</span><p>Assigned courses, completion rate, overdue warnings, certificate download.</p><span class="go">Open →</span></a>
+</div>
+
+<div class="note">
+<img src="../assets/logo-mark-light.png" alt="" aria-hidden="true" style="width:34px;flex:0 0 auto">
+<div>
+<p><strong>Prototype, not a product.</strong> Everything stores data in your own browser, so records vanish if you clear it and two people signing up get separate copies. Taking real money and holding real employee data needs a database, server-side authentication, payments and ICO registration first.</p>
+<ul class="next">
+<li>Still to build: Demo, Contact, Resources, About, Integrations, legal pages</li>
+<li>Then: remaining app screens (Attendance, Analytics, Settings)</li>
+<li>Then: the production backend spec for developer handoff</li>
+</ul>
+</div>
+</div>
+</div>
+</body></html>

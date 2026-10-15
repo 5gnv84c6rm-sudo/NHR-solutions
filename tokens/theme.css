@@ -1,0 +1,19 @@
+/* Dark mode. The semantic aliases flip; base palette values never change,
+   so every component that reads --surface-* / --text-* adapts automatically. */
+[data-theme="dark"]{
+  --surface-page:var(--nhr-black);
+  --surface-subtle:var(--nhr-charcoal);
+  --surface-card:var(--nhr-surface-dark);
+  --surface-accent-soft:rgba(0,229,212,.10);
+  --text-body:rgba(245,255,255,.72);
+  --text-heading:var(--nhr-text-light);
+  --text-muted:var(--nhr-text-muted);
+  --text-muted-on-light:var(--nhr-text-muted-ink);
+  --text-accent:var(--nhr-turquoise);
+  --border-subtle:var(--nhr-line-light-dark);
+  --link:var(--nhr-turquoise);
+  --link-hover:var(--nhr-turquoise-bright);
+  --shadow-card:var(--shadow-inset-hairline);
+  --shadow-card-hover:0 0 0 1px rgba(0,229,212,.35),0 18px 44px -20px rgba(0,229,212,.35);
+  --shadow-xs:none;
+}

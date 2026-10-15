@@ -1,0 +1,6 @@
+/* NHR Solution — typefaces.
+   Manrope is the single brand typeface (display + UI + body).
+   No licensed binaries were supplied, so Manrope is loaded from Google Fonts.
+   To self-host, drop woff2 files in assets/fonts/ and replace this import with
+   local @font-face rules. */
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap");

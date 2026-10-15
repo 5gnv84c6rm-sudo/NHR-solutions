@@ -1,0 +1,59 @@
+# NHR Solution — local development infrastructure.
+#
+# Postgres and Redis only. No schema, no migrations, no seed data — Phase 2
+# introduces those. Bringing this up in Phase 0 just proves the services start
+# and the API can reach them.
+#
+#   docker compose up -d      start
+#   docker compose down       stop, keep data
+#   docker compose down -v    stop and DESTROY the volumes
+
+name: nhr-solution
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nhr-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nhr_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-nhr}
+      # No default. If POSTGRES_PASSWORD is unset the container refuses to
+      # start, which is better than silently running on a guessable password.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Deterministic collation, so ORDER BY on names is stable across machines.
+      POSTGRES_INITDB_ARGS: '--locale=C --encoding=UTF8'
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-nhr} -d ${POSTGRES_DB:-nhr_dev}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: nhr-redis
+    restart: unless-stopped
+    # Sessions and the job queue both live here, so persistence is on: losing
+    # the queue on a restart would silently drop queued webhooks and email.
+    command: >
+      redis-server
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory-policy noeviction
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
+  redis_data:

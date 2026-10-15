@@ -1,0 +1,119 @@
+// Supabase Edge Function: notify-submission
+//
+// Emails every new enquiry and demo booking to the team. Called by database
+// triggers (see supabase/migrations/0012_notifications.sql), not by browsers.
+//
+// Kept as .ts.txt on purpose: the design-system compiler sweeps every .ts file
+// in this project into _ds_bundle.js and Node/Deno code breaks it (SETUP.md).
+// To redeploy with the CLI, copy it to supabase/functions/notify-submission/
+// index.ts first, deploy, then delete the copy.
+//
+// Secrets (Supabase dashboard > Edge Functions > Secrets):
+//   RESEND_API_KEY  required — from resend.com
+//   NOTIFY_SECRET   required — must match app.notify_config.secret in the database
+//   MAIL_TO         optional — defaults to nhrsolutionltd@gmail.com
+//   MAIL_FROM       optional — defaults to Resend's test sender
+
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
+const NOTIFY_SECRET = Deno.env.get('NOTIFY_SECRET') ?? '';
+const MAIL_TO = Deno.env.get('MAIL_TO') ?? 'nhrsolutionltd@gmail.com';
+// Resend only accepts its own test sender until a domain is verified.
+const MAIL_FROM = Deno.env.get('MAIL_FROM') ?? 'NHR Solution <onboarding@resend.dev>';
+
+const escapeHtml = (v: unknown) =>
+  String(v ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+
+function rows(pairs: [string, unknown][]) {
+  return pairs
+    .filter(([, v]) => v !== null && v !== undefined && v !== '')
+    .map(([k, v]) => {
+      const value = Array.isArray(v) ? v.join(', ') : v;
+      return `<tr><td style="padding:6px 14px 6px 0;color:#5b6a69;vertical-align:top;white-space:nowrap">${escapeHtml(k)}</td>` +
+             `<td style="padding:6px 0;color:#101515"><strong>${escapeHtml(value)}</strong></td></tr>`;
+    })
+    .join('');
+}
+
+function enquiryEmail(r: Record<string, unknown>) {
+  const dsr = r.is_dsr === true;
+  const subject = dsr
+    ? `DATA PROTECTION REQUEST — reply by ${r.dsr_due_on} — ${r.name}`
+    : `New enquiry: ${r.subject ?? 'Website'} — ${r.name}`;
+  const body = `
+    ${dsr ? '<p style="margin:0 0 16px;padding:12px 14px;background:#FDECEE;border-radius:8px;color:#8A1F2B"><strong>Statutory deadline:</strong> a data protection request must be answered within one month — by ' + escapeHtml(r.dsr_due_on) + '.</p>' : ''}
+    <table style="border-collapse:collapse;font:15px/1.6 -apple-system,Segoe UI,Roboto,sans-serif">
+      ${rows([
+        ['Name', r.name], ['Email', r.email], ['Phone', r.phone], ['Company', r.company],
+        ['Employees', r.employee_band], ['Goes to', r.route], ['About', r.subject],
+        ['Page', r.source_page]
+      ])}
+    </table>
+    <p style="margin:18px 0 6px;color:#5b6a69;font:15px/1.6 -apple-system,Segoe UI,Roboto,sans-serif">Message</p>
+    <p style="margin:0;padding:14px;background:#F7FAFA;border-radius:8px;font:15px/1.7 -apple-system,Segoe UI,Roboto,sans-serif;color:#101515;white-space:pre-wrap">${escapeHtml(r.message)}</p>`;
+  return { subject, body };
+}
+
+function demoEmail(r: Record<string, unknown>) {
+  const name = `${r.first_name ?? ''} ${r.last_name ?? ''}`.trim();
+  const when = [r.preferred_on, r.preferred_slot].filter(Boolean).join(' at ');
+  return {
+    subject: `Demo booking: ${name}${r.company ? ' — ' + r.company : ''}${when ? ' — ' + when : ''}`,
+    body: `
+      <table style="border-collapse:collapse;font:15px/1.6 -apple-system,Segoe UI,Roboto,sans-serif">
+        ${rows([
+          ['Name', name], ['Email', r.email], ['Phone', r.phone], ['Company', r.company],
+          ['Employees', r.employee_band], ['Sector', r.sector],
+          ['Interested in', r.modules_of_interest],
+          ['Preferred date', r.preferred_on], ['Preferred time', r.preferred_slot],
+          ['Page', r.source_page]
+        ])}
+      </table>
+      ${r.message ? `<p style="margin:18px 0 6px;color:#5b6a69;font:15px/1.6 -apple-system,Segoe UI,Roboto,sans-serif">Notes</p>
+      <p style="margin:0;padding:14px;background:#F7FAFA;border-radius:8px;font:15px/1.7 -apple-system,Segoe UI,Roboto,sans-serif;color:#101515;white-space:pre-wrap">${escapeHtml(r.message)}</p>` : ''}`
+  };
+}
+
+Deno.serve(async (req) => {
+  if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
+
+  // The triggers send this; without it the endpoint would be an open relay.
+  if (!NOTIFY_SECRET || req.headers.get('x-nhr-notify-secret') !== NOTIFY_SECRET) {
+    return new Response('Forbidden', { status: 403 });
+  }
+  if (!RESEND_API_KEY) {
+    return new Response(JSON.stringify({ error: 'RESEND_API_KEY is not set' }), { status: 500 });
+  }
+
+  let payload: { table?: string; record?: Record<string, unknown> };
+  try {
+    payload = await req.json();
+  } catch {
+    return new Response('Bad request', { status: 400 });
+  }
+
+  const record = payload.record ?? {};
+  const built = payload.table === 'demo_bookings' ? demoEmail(record) : enquiryEmail(record);
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: MAIL_FROM,
+      to: [MAIL_TO],
+      // So replying in Gmail goes straight to the person who wrote in.
+      reply_to: typeof record.email === 'string' ? record.email : undefined,
+      subject: built.subject,
+      html: `<div style="max-width:620px">${built.body}
+        <p style="margin:22px 0 0;font:13px/1.6 -apple-system,Segoe UI,Roboto,sans-serif;color:#8A9998">
+          Sent by NHR Solution &middot; ${escapeHtml(payload.table)} &middot; ${escapeHtml(record.created_at)}
+        </p></div>`
+    })
+  });
+
+  const detail = await res.text();
+  if (!res.ok) {
+    console.error('resend failed', res.status, detail);
+    return new Response(JSON.stringify({ sent: false, status: res.status, detail }), { status: 502 });
+  }
+  return new Response(JSON.stringify({ sent: true }), { headers: { 'Content-Type': 'application/json' } });
+});

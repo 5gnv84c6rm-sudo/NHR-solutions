@@ -1,0 +1,35 @@
+:root{
+  --font-core:"Manrope",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --fw-regular:400; /* @kind other */
+  --fw-medium:500; /* @kind other */
+  --fw-semibold:600; /* @kind other */
+  --fw-bold:700; /* @kind other */
+  --fw-extrabold:800; /* @kind other */
+
+  /* Display + text scale (desktop). Tablet/mobile steps below. */
+  --text-hero:72px; /* @kind font */
+  --text-section:52px; /* @kind font */
+  --text-subsection:32px; /* @kind font */
+  --text-card-title:22px; /* @kind font */
+  --text-lead:20px; /* @kind font */
+  --text-body-md:17px; /* @kind font */
+  --text-body-sm:15px; /* @kind font */
+  --text-caption:13px; /* @kind font */
+  --text-eyebrow:12px; /* @kind font */
+
+  --lh-tight:1.06; /* @kind other */
+  --lh-heading:1.14; /* @kind other */
+  --lh-snug:1.35; /* @kind other */
+  --lh-body:1.6; /* @kind other */
+  --lh-relaxed:1.7; /* @kind other */
+
+  --tracking-hero:-.03em; /* @kind other */
+  --tracking-heading:-.02em; /* @kind other */
+  --tracking-tight:-.01em; /* @kind other */
+  --tracking-normal:0; /* @kind other */
+  --tracking-eyebrow:.16em; /* @kind other */
+}
+@media (max-width:1024px){:root{--text-hero:56px;--text-section:40px;--text-subsection:28px}}
+@media (max-width:640px){:root{--text-hero:42px;--text-section:32px;--text-subsection:24px;--text-lead:18px;--text-body-md:16px}}

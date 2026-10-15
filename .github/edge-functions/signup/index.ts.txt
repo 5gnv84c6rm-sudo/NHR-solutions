@@ -1,0 +1,91 @@
+// Supabase Edge Function: signup
+//
+// Creates the account and provisions the workspace in one call, per
+// supabase/SIGNUP_FLOW.md. Runs as the service role, which never reaches a
+// browser. verify_jwt is off because the caller has no account yet.
+//
+// Kept as .ts.txt on purpose: the design-system compiler sweeps every .ts file
+// in this project into _ds_bundle.js and Deno code breaks it (SETUP.md). To
+// redeploy with the CLI, copy it to supabase/functions/signup/index.ts first.
+
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS'
+};
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
+  if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+
+  let body: Record<string, string>;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: 'bad_request' }, 400);
+  }
+
+  const email = String(body.email ?? '').trim().toLowerCase();
+  const password = String(body.password ?? '');
+  const admin_name = String(body.admin_name ?? '').trim();
+  const company_name = String(body.company_name ?? '').trim();
+  const employee_band = body.employee_band ? String(body.employee_band) : null;
+  const sector = body.sector ? String(body.sector) : null;
+
+  const fields: Record<string, string> = {};
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) fields.email = 'Enter a valid email address.';
+  // Long over complex: length is what actually resists guessing.
+  if (password.length < 10) fields.password = 'Use at least 10 characters.';
+  if (!admin_name) fields.admin_name = 'Enter your name.';
+  if (!company_name) fields.company_name = 'Enter your business name.';
+  if (Object.keys(fields).length) return json({ error: 'validation_failed', fields }, 422);
+
+  const admin = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+  );
+
+  const { data: created, error: authError } = await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: { name: admin_name }
+  });
+
+  if (authError || !created?.user) {
+    // Never confirm whether an address is registered: that is an account
+    // enumeration oracle on a public form.
+    const already = String(authError?.message ?? '').toLowerCase().includes('already');
+    return json({
+      error: 'signup_failed',
+      message: already
+        ? 'We could not create that account. If you already have one, try signing in or resetting your password.'
+        : 'We could not create that account. Please try again.'
+    }, already ? 409 : 500);
+  }
+
+  const { data: provisioned, error: provisionError } = await admin.rpc('provision_tenant', {
+    p_user_id: created.user.id,
+    p_email: email,
+    p_admin_name: admin_name,
+    p_company_name: company_name,
+    p_nation: 'england_wales',
+    p_employee_band: employee_band,
+    p_sector: sector,
+    p_trial_days: 14
+  });
+
+  if (provisionError) {
+    // Without this the address is burned and they cannot try again.
+    await admin.auth.admin.deleteUser(created.user.id);
+    console.error('provision failed', provisionError);
+    return json({ error: 'signup_failed', message: 'We could not finish setting up your workspace. Please try again.' }, 500);
+  }
+
+  return json({ ok: true, ...provisioned });
+});

@@ -269,8 +269,10 @@ function CandidateMailToaster() {
       if (m.status === 'Awaiting review') toast(m.templateLabel + ' for ' + m.candidateName + ' is ready to review in Job Adverts › Candidate emails', 'warn');
       else toast(m.templateLabel + ' email ' + (mailServiceLive() ? 'sent' : 'logged (demo)') + ' to ' + m.candidateName);
     };
+    const err = e => toast(String(e.detail || 'Could not reach the database'), 'warn');
     window.addEventListener('nhr-candidate-mail', on);
-    return () => window.removeEventListener('nhr-candidate-mail', on);
+    window.addEventListener('nhr-live-error', err);
+    return () => { window.removeEventListener('nhr-candidate-mail', on); window.removeEventListener('nhr-live-error', err); };
   }, []);
   return toastNode;
 }

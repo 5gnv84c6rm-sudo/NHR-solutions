@@ -5,7 +5,7 @@ const { Button, Badge, Card, IconButton, DashboardCard, StatTile, ProgressMeter,
 /* ---------------- Candidate-facing advert ----------------
    Light surface on purpose: this is what candidates see on the careers page,
    and the careers page uses the same component. */
-function AdvertPreview({ advert: a, compact = false, company = 'Northgate Services' }) {
+function AdvertPreview({ advert: a, compact = false, company = (window.nhrCompanyName ? window.nhrCompanyName() : 'Northgate Services') }) {
   const JA = window.JobAdvertStore;
   const list = (title, text, icon) => {
     const items = JA.lines(text);
@@ -335,7 +335,7 @@ function AdvertDetail({ data, advertId, intent, onClose, onEdit, toast }) {
             <details style={{ border: '1px solid var(--border-dark)', borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
               <summary style={{ cursor: 'pointer', fontSize: 13, fontWeight: 700, color: '#fff' }}>Google for Jobs structured data</summary>
               <p style={{ fontSize: 12.5, color: 'var(--text-muted-dark)', lineHeight: 1.6 }}>Added to the careers page automatically so the advert can appear in Google's job search.</p>
-              <pre style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, fontFamily: 'var(--font-mono)', color: 'var(--text-body-dark)', maxHeight: 260, overflow: 'auto' }}>{JSON.stringify(JA.jobPostingSchema(a, 'Northgate Services'), null, 2)}</pre>
+              <pre style={{ margin: 0, fontSize: 11.5, lineHeight: 1.55, fontFamily: 'var(--font-mono)', color: 'var(--text-body-dark)', maxHeight: 260, overflow: 'auto' }}>{JSON.stringify(JA.jobPostingSchema(a, window.nhrCompanyName ? window.nhrCompanyName() : 'Northgate Services'), null, 2)}</pre>
             </details>
           </div>
         )}
@@ -528,6 +528,9 @@ function JobAdvertsScreen() {
   const [editId, setEditId] = React.useState(undefined);   /* undefined closed · null new · id edit */
   const [toastNode, toast] = window.useAdvertToast();
   const [preset, setPreset] = React.useState(null);
+  /* Live accounts: connection status from liveRecruitment.js. */
+  const [live, setLive] = React.useState(() => window.NHRLive ? window.NHRLive.status() : null);
+  React.useEffect(() => (window.NHRLive ? window.NHRLive.subscribe(() => setLive(window.NHRLive.status())) : undefined), []);
   const firstRole = React.useRef(true);
   React.useEffect(() => { if (firstRole.current) { firstRole.current = false; return; } setView(isEmployee ? 'Internal job board' : 'Adverts'); }, [isEmployee]);
   /* Other modules ask for an advert — Recruitment's "Advertise" button. */
@@ -544,7 +547,7 @@ function JobAdvertsScreen() {
     : [['Adverts', 'Megaphone', data.adverts.filter(a => a.status === 'Published').length], ['Approvals', 'ClipboardCheck', pending], ['Candidate emails', 'Mail', window.CandidateMailStore ? window.CandidateMailStore.outbox().filter(m => m.status === 'Awaiting review').length : 0], ['Internal job board', 'Building2', 0], ['Performance', 'ChartColumn', 0]];
 
   const open = (id, i) => { setIntent(i || null); setOpenId(id); };
-  const careersUrl = 'careers.html';
+  const careersUrl = JA.careersPath();
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -563,7 +566,14 @@ function JobAdvertsScreen() {
       </div>
 
       <window.AdvertSubnav view={view} onSelect={setView} items={items} />
-      {window.RoleSwitcher ? <window.RoleSwitcher /> : null}
+      {live && live.status === 'loading' && <Notice icon="LoaderCircle">Loading your adverts and candidates…</Notice>}
+      {live && live.status === 'error' && (
+        <Notice icon="CloudOff" tone="warn">
+          <strong style={{ color: '#fff' }}>Not connected to your live data.</strong> {live.error}{' '}
+          <button type="button" onClick={() => window.NHRLive.refresh()} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--nhr-turquoise)', cursor: 'pointer', fontFamily: 'var(--font-core)', fontSize: 13, fontWeight: 700 }}>Try again</button>
+        </Notice>
+      )}
+      {!(live && ['loading', 'live', 'error'].indexOf(live.status) > -1) && window.RoleSwitcher ? <window.RoleSwitcher /> : null}
 
       {view === 'Adverts' && <window.AdvertList data={data} onOpen={open} onEdit={setEditId} onNew={() => setEditId(null)} toast={toast} />}
       {view === 'Approvals' && (

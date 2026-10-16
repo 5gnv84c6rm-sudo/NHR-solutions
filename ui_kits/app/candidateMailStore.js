@@ -26,9 +26,10 @@
 */
 (function () {
   const KEY = 'nhr-candidate-mail-v1';
+  function K() { return window.NHRLive && NHRLive.active() ? KEY + ':live:' + NHRLive.scope() : KEY; }
   const subs = [];
   function notify() { subs.forEach(fn => { try { fn(); } catch (e) { /* detached */ } }); }
-  function uid(p) { return p + '-' + Math.random().toString(36).slice(2, 9); }
+  function uid(p) { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : p + '-' + Math.random().toString(36).slice(2, 9); }
   function stamp() { return new Date().toISOString(); }
   function who() { const S = window.EmployeeStore; return S && S.session ? S.session.name : 'System'; }
   const COMPANY = 'Northgate Services';
@@ -71,10 +72,10 @@
 
   function blank() { return { templates: {}, outbox: [], lastStage: {}, primed: false }; }
   function read() {
-    try { const d = JSON.parse(localStorage.getItem(KEY)); if (d && d.outbox) return d; } catch (e) { /* fall through */ }
+    try { const d = JSON.parse(localStorage.getItem(K())); if (d && d.outbox) return d; } catch (e) { /* fall through */ }
     return blank();
   }
-  function write(d) { localStorage.setItem(KEY, JSON.stringify(d)); notify(); return d; }
+  function write(d) { localStorage.setItem(K(), JSON.stringify(d)); notify(); return d; }
 
   function template(key) {
     const over = read().templates[key] || {};
@@ -93,7 +94,7 @@
     const manager = (adv && JA.managerName(adv)) || (vac && vac.hiringManager) || 'The hiring team';
     return {
       firstName: c.firstName, lastName: c.lastName, fullName: c.firstName + ' ' + c.lastName,
-      jobTitle: (vac && vac.title) || (adv && adv.title) || 'the role', company: COMPANY,
+      jobTitle: (vac && vac.title) || (adv && adv.title) || 'the role', company: window.nhrCompanyName ? window.nhrCompanyName() : COMPANY,
       location: (vac && vac.location) || (adv && adv.location) || '',
       hiringManager: manager,
       closingLine: adv && adv.closingAt && adv.status === 'Published' ? ' after the closing date on ' + fmt(adv.closingAt) : '',
@@ -116,7 +117,7 @@
   function toHtml(body) {
     return '<div style="font:15px/1.65 -apple-system,Segoe UI,Roboto,sans-serif;color:#101515;max-width:600px">' +
       esc(body).split(/\n{2,}/).map(p => '<p style="margin:0 0 14px">' + p.replace(/\n/g, '<br>') + '</p>').join('') +
-      '<p style="margin:22px 0 0;font-size:12px;color:#8A9998">Sent by ' + esc(COMPANY) + ' using NHR Solution.</p></div>';
+      '<p style="margin:22px 0 0;font-size:12px;color:#8A9998">Sent by ' + esc(window.nhrCompanyName ? window.nhrCompanyName() : COMPANY) + ' using NHR Solution.</p></div>';
   }
 
   /* ---------- delivery ---------- */
@@ -128,7 +129,7 @@
     return SB.client().then(db => db.auth.getSession().then(res => {
       if (!res || !res.data || !res.data.session) return { sent: false, reason: 'Not signed in to the live service' };
       return db.functions.invoke('send-candidate-email', {
-        body: { to: msg.to, subject: msg.subject, html: toHtml(msg.body), text: msg.body, reply_to: msg.replyTo, template: msg.template, candidate_ref: msg.candidateId }
+        body: { to: msg.to, subject: msg.subject, html: toHtml(msg.body), text: msg.body, reply_to: msg.replyTo, template: msg.template, candidate_id: msg.candidateId }
       }).then(r => r.error ? { sent: false, reason: r.error.message || 'Send failed' } : { sent: true, id: r.data && r.data.id });
     })).catch(e => ({ sent: false, reason: e.message || 'Send failed' }));
   }
@@ -184,26 +185,31 @@
     if (!d.primed) {
       cands.forEach(c => { d.lastStage[c.id] = c.stage; });
       d.primed = true;
-      localStorage.setItem(KEY, JSON.stringify(d));
+      localStorage.setItem(K(), JSON.stringify(d));
       return;
     }
     const changes = [];
+    let seen = false;
     cands.forEach(c => {
       const before = d.lastStage[c.id];
       if (before === c.stage) return;
       d.lastStage[c.id] = c.stage;
+      seen = true;
       /* A candidate seen for the first time is only "new" if they were just
          created through an application form. Anything else (a demo reset,
          records synced from another device) is recorded silently. */
       if (before === undefined && !(c.recordedAt && Date.now() - new Date(c.recordedAt) < 10 * 60e3)) return;
       changes.push(c);
     });
+    if (seen) localStorage.setItem(K(), JSON.stringify(d));
     if (!changes.length) return;
-    localStorage.setItem(KEY, JSON.stringify(d));
     changes.forEach(c => {
       const key = TRIGGERS[c.stage];
       if (!key || !c.email) return;
       if (c.autoEmail === false || c.backdated) return;
+      /* Live accounts: the database trigger sends "application received" for
+         every new application, including careers-page ones, so the app does not. */
+      if (key === 'received' && window.NHRLive && NHRLive.active()) return;
       const t = template(key);
       if (t.mode === 'off') return;
       const m = queue(c, key, { review: t.mode === 'review' });
@@ -219,8 +225,10 @@
       const d = read();
       d.templates[key] = Object.assign({}, d.templates[key] || {}, patch);
       write(d);
+      if (window.NHRLive && NHRLive.active()) NHRLive.saveTemplate(key, d.templates[key]);
     },
-    resetTemplate(key) { const d = read(); delete d.templates[key]; write(d); },
+    resetTemplate(key) { const d = read(); delete d.templates[key]; write(d); if (window.NHRLive && NHRLive.active()) NHRLive.saveTemplate(key, { mode: TEMPLATES[key].mode, subject: null, body: null }); },
+    _loadTemplates(map) { const d = read(); d.templates = Object.assign({}, map); write(d); },
     outbox() { return read().outbox.slice(); },
     forCandidate(id) { return read().outbox.filter(m => m.candidateId === id); },
     compose,
@@ -249,11 +257,11 @@
     discard(id) { update(id, { status: 'Discarded', discardedBy: who(), discardedAt: stamp() }); },
     scan,
     subscribe(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i > -1) subs.splice(i, 1); }; },
-    reset() { localStorage.removeItem(KEY); notify(); }
+    reset() { localStorage.removeItem(K()); notify(); }
   };
 
   if (window.RecruitmentStore) window.RecruitmentStore.subscribe(scan);
-  window.addEventListener('storage', e => { if (e.key === 'nhr-recruitment-v1') scan(); if (e.key === KEY) notify(); });
+  window.addEventListener('storage', e => { if (e.key && e.key.indexOf('nhr-recruitment-v1') === 0) scan(); if (e.key && e.key.indexOf(KEY) === 0) notify(); });
   /* Prime after the other stores have seeded. */
   setTimeout(scan, 0);
 

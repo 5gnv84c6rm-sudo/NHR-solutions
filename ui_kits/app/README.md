@@ -95,3 +95,13 @@ CandidateMailStore.reset();   // empty outbox, standard templates
 ```
 
 Job board channels (Indeed, LinkedIn, Totaljobs, Reed, DWP Find a job) are recorded as posting destinations; sending the feed to each board belongs in Integrations once a backend exists.
+
+### Live accounts (`liveRecruitment.js`)
+
+For a real signed-in account (not the demo), Recruitment and Job Adverts read and write the Supabase database instead of the browser:
+
+- On load it reads vacancies, candidates, candidate notes, interviews, job adverts and email template settings for the workspace, and refreshes every minute while the page is open.
+- Every change the stores make is written back, in order. If the database refuses a change (row-level security, or the publishing/backdating rules in `0016_job_adverts.sql`), the screen reloads what the database holds and a message explains why.
+- Live data has its own browser cache (`…:live:<user id>`), so it never mixes with demo data, and the demo's sample adverts are never written to the database.
+- The careers page for a live workspace is `careers.html?employer=<workspace slug>`. It reads the `public_job_adverts` view, uploads the CV to the `cvs` bucket, and submits through `apply_to_job_advert()`. The database trigger sends the "application received" email.
+- Employees are still browser-only, so a hire creates the employee record on that device.

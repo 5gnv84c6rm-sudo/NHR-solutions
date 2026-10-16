@@ -23,9 +23,10 @@
 */
 (function () {
   const KEY = 'nhr-job-adverts-v1';
+  function K() { return window.NHRLive && NHRLive.active() ? KEY + ':live:' + NHRLive.scope() : KEY; }
   const subs = [];
   function notify() { subs.forEach(fn => { try { fn(); } catch (e) { /* detached */ } }); }
-  function uid(p) { return p + '-' + Math.random().toString(36).slice(2, 9); }
+  function uid(p) { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : p + '-' + Math.random().toString(36).slice(2, 9); }
   function iso(d) { return new Date(d).toISOString().slice(0, 10); }
   function stamp() { return new Date().toISOString(); }
   function who() { const S = window.EmployeeStore; return S && S.session ? S.session.name : 'System'; }
@@ -197,18 +198,28 @@
       return a;
     });
     const data = { adverts };
-    localStorage.setItem(KEY, JSON.stringify(data));
+    localStorage.setItem(K(), JSON.stringify(data));
     return data;
   }
 
   function read() {
     try {
-      const raw = JSON.parse(localStorage.getItem(KEY));
+      const raw = JSON.parse(localStorage.getItem(K()));
       if (raw && Array.isArray(raw.adverts)) return raw;
     } catch (e) { /* fall through */ }
+    /* A live account starts empty — sample adverts are for the demo only. */
+    if (window.NHRLive && NHRLive.active()) return { adverts: [] };
     return seed();
   }
-  function write(data) { localStorage.setItem(KEY, JSON.stringify(data)); notify(); return data; }
+  function write(data) {
+    const k = K();
+    let before = null;
+    try { before = JSON.parse(localStorage.getItem(k)); } catch (e) { /* none */ }
+    localStorage.setItem(k, JSON.stringify(data));
+    if (window.NHRLive && NHRLive.active()) NHRLive.persist('adverts', before, data);
+    notify();
+    return data;
+  }
 
   function nextRef(list) {
     const nums = list.map(a => Number(String(a.reference).replace(/\D/g, '')) || 0);
@@ -488,7 +499,7 @@
       if (!a) return;
       a.views = a.views || {};
       a.views[channel || 'careers'] = (a.views[channel || 'careers'] || 0) + 1;
-      localStorage.setItem(KEY, JSON.stringify(data)); /* silent — a view is not an edit */
+      localStorage.setItem(K(), JSON.stringify(data)); /* silent — a view is not an edit */
     },
 
     /* Performance, derived from the pipeline so the numbers cannot drift. */
@@ -590,8 +601,13 @@
     },
 
     publicUrl(a) {
-      const base = location.href.replace(/[^/]*$/, '');
-      return base + 'careers.html#' + (a.reference || a.id);
+      const base = location.href.split('#')[0].split('?')[0].replace(/[^/]*$/, '');
+      return base + JobAdvertStore.careersPath() + '#' + (a.reference || a.id);
+    },
+    /* Live accounts get their own careers page, addressed by workspace slug. */
+    careersPath() {
+      const slug = window.NHRLive && NHRLive.active() ? NHRLive.employerSlug() : '';
+      return 'careers.html' + (slug ? '?employer=' + encodeURIComponent(slug) : '');
     },
 
     /* schema.org JobPosting — what Google for Jobs reads from a careers page. */
@@ -617,13 +633,14 @@
     },
 
     subscribe(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i > -1) subs.splice(i, 1); }; },
-    reset() { localStorage.removeItem(KEY); notify(); }
+    reset() { localStorage.removeItem(K()); notify(); },
+    _load(data) { localStorage.setItem(K(), JSON.stringify(data)); notify(); }
   };
 
   /* A vacancy changing in Recruitment changes what the advert shows. */
   if (window.RecruitmentStore) window.RecruitmentStore.subscribe(notify);
   /* Another tab (the careers page) applying must refresh this one. */
-  window.addEventListener('storage', e => { if (e.key === KEY || e.key === 'nhr-recruitment-v1') notify(); });
+  window.addEventListener('storage', e => { if (e.key && (e.key.indexOf(KEY) === 0 || e.key.indexOf('nhr-recruitment-v1') === 0)) notify(); });
 
   window.JobAdvertStore = JobAdvertStore;
 })();

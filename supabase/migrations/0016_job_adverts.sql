@@ -75,6 +75,9 @@ create table job_adverts (
   approved_at   timestamptz,
 
   views         jsonb not null default '{}'::jsonb,   -- {channel: count}
+  -- Editor state the database does not need to reason about (activity
+  -- feed, referral list, remaining openings). Never used in a policy.
+  app_data      jsonb not null default '{}'::jsonb,
   created_by    uuid references auth.users(id) on delete set null default auth.uid(),
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
@@ -191,7 +194,13 @@ alter table candidates
   add column screening_answers jsonb not null default '[]'::jsonb,
   -- false for backdated records: the candidate may already have heard, and
   -- an automatic "we've received your application" weeks later confuses.
-  add column auto_email boolean not null default true;
+  add column auto_email boolean not null default true,
+  -- App-side detail without its own column yet: right-to-work wording, the
+  -- offer made, the employee record a hire became. Never used in a policy.
+  add column app_data jsonb not null default '{}'::jsonb;
+
+alter table vacancies
+  add column app_data jsonb not null default '{}'::jsonb;
 
 create index candidates_advert on candidates (advert_id);
 
@@ -277,7 +286,7 @@ create trigger candidates_received_email after insert on candidates
 -- Visitors read published, public adverts for one employer by its slug, and
 -- apply through a function — they never get table access.
 create or replace view public_job_adverts with (security_barrier) as
-  select a.id, t.slug as employer, t.name as employer_name, a.reference, a.title, a.department, a.location,
+  select a.id, t.slug as employer, t.name as employer_name, a.tenant_id as employer_id, a.reference, a.title, a.department, a.location,
          a.workplace, a.employment_type, a.hours_per_week, a.contract_length,
          case when a.show_salary then a.salary_min end as salary_min,
          case when a.show_salary then a.salary_max end as salary_max,
@@ -311,6 +320,10 @@ begin
     raise exception 'This advert is not taking applications';
   end if;
   if a.vacancy_id is null then raise exception 'This advert has no vacancy'; end if;
+  -- A CV must have been uploaded to this employer's applications folder.
+  if p_cv_key is not null and p_cv_key not like a.tenant_id::text || '/applications/%' then
+    raise exception 'Invalid CV reference';
+  end if;
   if exists (select 1 from candidates c where c.vacancy_id = a.vacancy_id and c.email = p_email::citext) then
     raise exception 'An application from this email address has already been received for this role';
   end if;
@@ -321,24 +334,52 @@ begin
     and lower(coalesce(p_answers ->> (q ->> 'id'), '')) = q ->> 'knockout';
 
   insert into candidates (tenant_id, vacancy_id, advert_id, channel, first_name, last_name, email, phone,
-                          cv_key, cover_note, source, screening_answers, applied_on, delete_after)
+                          cv_key, cover_note, source, screening_answers, applied_on, delete_after, app_data)
   values (a.tenant_id, a.vacancy_id, a.id, 'careers', trim(p_first_name), trim(p_last_name), p_email, p_phone,
-          p_cv_key, p_cover_note, 'Company website', coalesce(p_answers, '{}'::jsonb),
-          (now() at time zone 'Europe/London')::date, null)
+          p_cv_key, left(p_cover_note, 4000), 'Company website', coalesce(p_answers, '{}'::jsonb),
+          (now() at time zone 'Europe/London')::date, null,
+          jsonb_build_object('advertRef', a.reference,
+            'cvName', case when p_cv_key is not null then regexp_replace(p_cv_key, '^.*/[0-9a-f-]{36}-', '') end,
+            'rightToWork', case when p_needs_sponsorship then 'Visa sponsorship needed' else 'Not yet checked' end))
   returning id into cid;
 
-  if flagged > 0 or coalesce(p_needs_sponsorship, false) then
-    insert into candidate_notes (tenant_id, candidate_id, kind, author_label, body)
-    values (a.tenant_id, cid, 'screening', 'Careers page',
-      concat_ws(' ',
-        case when flagged > 0 then flagged || ' knock-out answer(s) — review before progressing.' end,
-        case when p_needs_sponsorship then 'Candidate says they will need visa sponsorship.' end));
-  end if;
+  insert into candidate_notes (tenant_id, candidate_id, kind, author_label, body)
+  values (a.tenant_id, cid, 'screening', 'Job advert ' || a.reference,
+    concat_ws(' ',
+      'Applied via the careers page.',
+      (select 'Screening — ' || string_agg((q ->> 'text') || ' ' || coalesce(p_answers ->> (q ->> 'id'), '—'), ' · ')
+         from jsonb_array_elements(a.questions) q),
+      case when flagged > 0 then '⚠ ' || flagged || ' knock-out answer(s) — review before progressing.' end,
+      case when p_needs_sponsorship then 'Candidate says they will need visa sponsorship.' end,
+      case when coalesce(p_cover_note, '') <> '' then 'Cover note: ' || left(p_cover_note, 1000) end));
   return cid;
 end $$;
 
 revoke all on function public.apply_to_job_advert from public;
 grant execute on function public.apply_to_job_advert to anon, authenticated;
+
+-- Careers-page applicants upload a CV before submitting. They can only add a
+-- file (never read, list or replace one), only into the applications folder
+-- of an employer with a live public advert, and the bucket already limits
+-- type (PDF/Word) and size (10 MB). The file is linked to the application by
+-- apply_to_job_advert, which checks the path again.
+-- Visitors cannot read job_adverts (or the app schema), so the check runs in
+-- a security-definer function that answers one yes/no question.
+create or replace function public.careers_accepting_cvs(p_name text)
+returns boolean language plpgsql stable security definer set search_path = public as $$
+declare t uuid;
+begin
+  begin t := split_part(p_name, '/', 1)::uuid; exception when others then return false; end;
+  return split_part(p_name, '/', 2) = 'applications'
+     and exists (select 1 from job_adverts a
+                 where a.tenant_id = t and a.status = 'published' and a.visibility <> 'internal_only');
+end $$;
+revoke all on function public.careers_accepting_cvs from public;
+grant execute on function public.careers_accepting_cvs to anon, authenticated;
+
+create policy cvs_public_upload on storage.objects
+  for insert to anon, authenticated
+  with check (bucket_id = 'cvs' and public.careers_accepting_cvs(name));
 
 -- ============================================================ row-level security
 alter table job_adverts enable row level security;

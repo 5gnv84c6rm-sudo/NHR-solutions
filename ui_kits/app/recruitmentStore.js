@@ -11,10 +11,13 @@
      scheduleInterview, hire, reject, remove, subscribe }
 */
 (function () {
-  const KEY = 'nhr-recruitment-v1';
+  const BASE_KEY = 'nhr-recruitment-v1';
+  /* Live accounts keep their own cache (filled from the database by
+     liveRecruitment.js) so demo data and real data never mix. */
+  function K() { return window.NHRLive && NHRLive.active() ? BASE_KEY + ':live:' + NHRLive.scope() : BASE_KEY; }
   const subs = [];
   function notify() { subs.forEach(fn => { try { fn(); } catch (e) { /* detached */ } }); }
-  function uid(p) { return p + '-' + Math.random().toString(36).slice(2, 9); }
+  function uid(p) { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : p + '-' + Math.random().toString(36).slice(2, 9); }
   function iso(d) { return new Date(d).toISOString().slice(0, 10); }
   function stamp() { return new Date().toISOString(); }
 
@@ -83,18 +86,27 @@
       };
     });
     const data = { vacancies, candidates };
-    localStorage.setItem(KEY, JSON.stringify(data));
+    localStorage.setItem(K(), JSON.stringify(data));
     return data;
   }
 
   function read() {
     try {
-      const raw = JSON.parse(localStorage.getItem(KEY));
+      const raw = JSON.parse(localStorage.getItem(K()));
+      if (window.NHRLive && NHRLive.active()) return raw && raw.vacancies ? raw : { vacancies: [], candidates: [] };
       if (raw && raw.vacancies && raw.vacancies.length) return raw;
-    } catch (e) { /* fall through */ }
+    } catch (e) { if (window.NHRLive && NHRLive.active()) return { vacancies: [], candidates: [] }; }
     return seed();
   }
-  function write(data) { localStorage.setItem(KEY, JSON.stringify(data)); notify(); return data; }
+  function write(data) {
+    const k = K();
+    let before = null;
+    try { before = JSON.parse(localStorage.getItem(k)); } catch (e) { /* none */ }
+    localStorage.setItem(k, JSON.stringify(data));
+    if (window.NHRLive && NHRLive.active()) NHRLive.persist('recruitment', before, data);
+    notify();
+    return data;
+  }
 
   const RecruitmentStore = {
     STAGES, TERMINAL, SOURCES, RTW_OPTIONS,
@@ -216,7 +228,10 @@
     },
 
     subscribe(fn) { subs.push(fn); return () => { const i = subs.indexOf(fn); if (i > -1) subs.splice(i, 1); }; },
-    reset() { localStorage.removeItem(KEY); notify(); }
+    reset() { localStorage.removeItem(K()); notify(); },
+    /* Used by liveRecruitment.js to load database rows without echoing them back. */
+    _load(data) { localStorage.setItem(K(), JSON.stringify(data)); notify(); },
+    _key: BASE_KEY
   };
 
   window.RecruitmentStore = RecruitmentStore;

@@ -2,7 +2,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#FFFFFF">
-<title>Careers — Northgate Services</title>
+<title>Careers</title>
 <link rel="icon" type="image/png" href="../../assets/logo-mark-dark.png">
 <link rel="stylesheet" href="../../styles.css">
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
@@ -44,8 +44,73 @@ h1,h2,h3,p,span,li{overflow-wrap:anywhere}
    adverts from JobAdvertStore; an application calls JobAdvertStore.apply,
    which creates the candidate in the employer's Recruitment pipeline. */
 const { Button, Badge, Card, Input, Select, Checkbox } = window.NHRSolutionDesignSystem_0db691;
-const COMPANY = 'Northgate Services';
 const JA = window.JobAdvertStore;
+
+/* Two modes. With ?employer=<workspace slug> and the live service configured,
+   the page shows that employer's published adverts from the database and
+   applications go straight into their Recruitment pipeline. Without it, it
+   shows the demo workspace's adverts from this browser. */
+const EMPLOYER = new URLSearchParams(location.search).get('employer') || '';
+const LIVE = !!(EMPLOYER && window.NHRSupabase && window.NHRSupabase.enabled());
+let COMPANY = LIVE ? '' : 'Northgate Services';
+let LIVE_JOBS = [];
+
+const EMP_TYPE = { full_time: 'Full-time', part_time: 'Part-time', temporary: 'Temporary', contractor: 'Contractor', apprentice: 'Apprentice', casual: 'Casual' };
+function fromRow(r) {
+  return {
+    id: r.id, employerId: r.employer_id, reference: r.reference, title: r.title, department: r.department || '',
+    location: r.location || '', workplace: { on_site: 'On-site', hybrid: 'Hybrid', remote: 'Remote' }[r.workplace] || 'On-site',
+    employmentType: EMP_TYPE[r.employment_type] || 'Full-time', hoursPerWeek: r.hours_per_week != null ? String(r.hours_per_week) : '',
+    contractLength: r.contract_length || '',
+    salaryMin: r.salary_min != null ? String(Number(r.salary_min)) : '', salaryMax: r.salary_max != null ? String(Number(r.salary_max)) : '',
+    salaryPeriod: { year: 'per year', hour: 'per hour', day: 'per day' }[r.salary_period] || 'per year',
+    showSalary: r.salary_min != null || r.salary_max != null,
+    summary: r.summary || '', responsibilities: r.responsibilities || '', essential: r.essential || '',
+    desirable: r.desirable || '', benefits: r.benefits || '', questions: r.questions || [],
+    includeRtwStatement: r.include_rtw_statement !== false,
+    sponsorship: { available: !!r.sponsorship_available, note: r.sponsorship_note || '' },
+    publishedAt: r.published_on || '', closingAt: r.closes_on || '', status: 'Published', channels: { careers: true }
+  };
+}
+
+const Data = {
+  list() { return LIVE ? LIVE_JOBS : JA.list({ publicOnly: true }); },
+  get(ref) { return LIVE ? (LIVE_JOBS.find(a => a.reference === ref || a.id === ref) || null) : JA.get(ref); },
+  load() {
+    if (!LIVE) return Promise.resolve();
+    return window.NHRSupabase.client()
+      .then(db => db.from('public_job_adverts').select('*').eq('employer', EMPLOYER).order('published_on', { ascending: false }))
+      .then(res => {
+        if (res.error) throw new Error(res.error.message);
+        LIVE_JOBS = (res.data || []).map(fromRow);
+        if (res.data && res.data[0]) COMPANY = res.data[0].employer_name;
+        else COMPANY = EMPLOYER.replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      });
+  },
+  /* Live: upload the CV to the employer's applications folder, then submit
+     through apply_to_job_advert, which re-checks everything server-side. */
+  apply(a, f) {
+    if (!LIVE) {
+      const r = JA.apply(a.id, Object.assign({}, f, { channel: 'careers' }));
+      return Promise.resolve(r);
+    }
+    return window.NHRSupabase.client().then(db => {
+      const id = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now());
+      const safe = f.cvFile.name.replace(/[^A-Za-z0-9._-]+/g, '-').slice(-80);
+      const path = a.employerId + '/applications/' + id + '-' + safe;
+      return db.storage.from('cvs').upload(path, f.cvFile, { contentType: f.cvFile.type || 'application/pdf', upsert: false })
+        .then(up => {
+          if (up.error) throw new Error('Your CV could not be uploaded (' + up.error.message + '). Please use a PDF or Word file under 5MB.');
+          return db.rpc('apply_to_job_advert', {
+            p_advert_id: a.id, p_first_name: f.firstName.trim(), p_last_name: f.lastName.trim(), p_email: f.email.trim(),
+            p_phone: f.phone.trim() || null, p_answers: f.answers, p_cover_note: f.coverNote || null, p_cv_key: path,
+            p_needs_sponsorship: !!f.needsSponsorship, p_consent: !!f.consent
+          });
+        })
+        .then(res => res.error ? { error: res.error.message } : { candidate: { id: res.data } });
+    }).catch(e => ({ error: e.message || 'Something went wrong — please try again.' }));
+  }
+};
 
 function useHash() {
   const [h, setH] = React.useState(location.hash.slice(1));
@@ -78,8 +143,8 @@ function JobList() {
   const [dept, setDept] = React.useState('');
   const [wp, setWp] = React.useState('');
   const [, force] = React.useReducer(n => n + 1, 0);
-  React.useEffect(() => JA.subscribe(force), []);
-  const all = JA.list({ publicOnly: true });
+  React.useEffect(() => (LIVE ? undefined : JA.subscribe(force)), []);
+  const all = Data.list();
   const jobs = all.filter(a => (!dept || a.department === dept) && (!wp || a.workplace === wp) &&
     (!q || [a.title, a.location, a.department, a.summary].join(' ').toLowerCase().includes(q.toLowerCase())));
   const depts = Array.from(new Set(all.map(a => a.department))).sort();
@@ -142,7 +207,8 @@ function JobList() {
 }
 
 function ApplyForm({ advert: a }) {
-  const [f, setF] = React.useState({ firstName: '', lastName: '', email: '', phone: '', cvName: '', coverNote: '', answers: {}, needsSponsorship: false, consent: false });
+  const [busy, setBusy] = React.useState(false);
+  const [f, setF] = React.useState({ firstName: '', lastName: '', email: '', phone: '', cvName: '', cvFile: null, coverNote: '', answers: {}, needsSponsorship: false, consent: false });
   const [errors, setErrors] = React.useState({});
   const [done, setDone] = React.useState(null);
   const [fail, setFail] = React.useState('');
@@ -167,9 +233,12 @@ function ApplyForm({ advert: a }) {
     if (!f.consent) er.consent = 'Please confirm you have read how we use your data.';
     setErrors(er);
     if (Object.keys(er).length) { const first = document.querySelector('[aria-invalid="true"]'); if (first) first.focus(); return; }
-    const r = JA.apply(a.id, Object.assign({}, f, { channel: 'careers' }));
-    if (r.error) return setFail(r.error);
-    setDone(f.firstName);
+    setBusy(true);
+    Data.apply(a, f).then(r => {
+      setBusy(false);
+      if (r.error) return setFail(r.error);
+      setDone(f.firstName);
+    });
   }
   if (done) {
     return (
@@ -196,7 +265,7 @@ function ApplyForm({ advert: a }) {
           <Icon name={f.cvName ? 'FileCheck2' : 'Upload'} size={18} style={{ color: 'var(--nhr-turquoise-ink)' }} />
           <span style={{ fontSize: 13.5, color: f.cvName ? 'var(--nhr-text-dark)' : 'var(--nhr-text-muted-ink)', flex: 1, minWidth: 0 }}>{f.cvName || 'Upload PDF or Word (max 5MB)'}</span>
           <input type="file" accept=".pdf,.doc,.docx" aria-invalid={errors.cv ? 'true' : undefined} style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
-            onChange={e => { const file = e.target.files && e.target.files[0]; if (!file) return; if (file.size > 5 * 1024 * 1024) { setErrors(p => Object.assign({}, p, { cv: 'That file is over 5MB.' })); return; } set('cvName', file.name); setErrors(p => Object.assign({}, p, { cv: '' })); }} />
+            onChange={e => { const file = e.target.files && e.target.files[0]; if (!file) return; if (file.size > 5 * 1024 * 1024) { setErrors(p => Object.assign({}, p, { cv: 'That file is over 5MB.' })); return; } set('cvName', file.name); set('cvFile', file); setErrors(p => Object.assign({}, p, { cv: '' })); }} />
         </span>
         {errors.cv && <span role="alert" style={{ fontSize: 12, color: 'var(--nhr-danger)' }}>{errors.cv}</span>}
       </label>
@@ -221,17 +290,17 @@ function ApplyForm({ advert: a }) {
         {errors.consent && <span role="alert" style={{ fontSize: 12, color: 'var(--nhr-danger)' }}>{errors.consent}</span>}
       </div>
       {fail && <span role="alert" style={{ fontSize: 13, color: 'var(--nhr-danger)', fontWeight: 600 }}>{fail}</span>}
-      <Button type="submit" fullWidth iconLeft={<Icon name="Send" size={16} />}>Submit Application</Button>
+      <Button type="submit" fullWidth disabled={busy} iconLeft={<Icon name="Send" size={16} />}>{busy ? 'Sending…' : 'Submit Application'}</Button>
       <span style={{ fontSize: 11.5, color: 'var(--nhr-text-muted-ink)', textAlign: 'center' }}>Applications are handled securely by NHR Solution on behalf of {COMPANY}.</span>
     </Card>
   );
 }
 
 function JobDetail({ advertRef }) {
-  const a = JA.get(advertRef);
+  const a = Data.get(advertRef);
   React.useEffect(() => {
     if (!a) return;
-    JA.recordView(a.id, 'careers');
+    if (!LIVE) JA.recordView(a.id, 'careers');
     document.title = a.title + ' — Careers at ' + COMPANY;
     /* Structured data for Google for Jobs, only while the advert is live. */
     let tag = document.getElementById('job-ld');
@@ -288,6 +357,19 @@ function Careers() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<Careers />);
+function CareersError({ message }) {
+  return (
+    <main className="cr-wrap" style={{ padding: '60px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 12, alignItems: 'center' }}>
+      <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--nhr-text-dark)' }}>Careers page unavailable</span>
+      <span style={{ color: 'var(--nhr-text-muted-ink)', maxWidth: 480 }}>{message}</span>
+    </main>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+Data.load().then(() => {
+  document.title = 'Careers — ' + COMPANY;
+  root.render(<Careers />);
+}).catch(e => root.render(<CareersError message={'We could not load the open roles just now. Please try again in a few minutes. (' + (e.message || e) + ')'} />));
 </script>
 </body></html>

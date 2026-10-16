@@ -5,7 +5,8 @@
 // one in public.candidate_emails for the audit trail.
 //
 // Two callers:
-//   1. The app (verify_jwt ON). A signed-in admin, HR or manager sends an
+//   1. The app. Deploy with verify_jwt OFF (the trigger below has no user
+//      token); this function verifies the caller's token itself. A signed-in admin, HR or manager sends an
 //      email they have reviewed, or one the pipeline sent automatically.
 //      Tenant and role come from the caller's JWT, never the request body.
 //   2. The database trigger on candidates (0016_job_adverts.sql) for the

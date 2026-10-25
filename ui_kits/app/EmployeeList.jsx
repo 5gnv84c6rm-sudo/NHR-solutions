@@ -113,7 +113,11 @@ function rowMenu(S, e, open, refresh) {
     { label: 'Change status to On Leave', icon: 'Plane', onClick: () => { S.setStatus(e.id, 'On Leave'); refresh(); } },
     { label: 'Assign manager', icon: 'UserCog', onClick: () => open(e.id, 'edit') },
     { divider: true, key: 'd2' },
-    { label: 'Archive employee', icon: 'Archive', danger: true, onClick: () => { S.archive(e.id); refresh(); } }
+    { label: 'Archive employee (leaver)', icon: 'Archive', danger: true, onClick: () => { S.archive(e.id); refresh(); } },
+    ...(S.can('employees.archive') && e.employeeId !== S.session.employeeId ? [{ label: 'Delete permanently', icon: 'Trash2', danger: true, onClick: () => {
+      if (!window.confirm('Delete ' + S.fullName(e) + ' permanently?\n\nUse this only for a record added by mistake. For someone who has left, choose "Archive employee" instead — employment records must be kept.')) return;
+      const r = S.remove(e.id); if (r && r.error) window.alert(r.error); refresh();
+    } }] : [])
   ];
 }
 

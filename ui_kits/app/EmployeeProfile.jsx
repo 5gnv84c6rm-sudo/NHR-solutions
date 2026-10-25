@@ -388,7 +388,11 @@ function EmployeeProfile({ employeeId, onBack, onEdit }) {
               { label: 'Set to Inactive', icon: 'CircleSlash', onClick: () => S.setStatus(employee.id, 'Inactive') },
               ...(window.openJobAdvert && S.can('employees.write') ? [{ label: 'Advertise this role', icon: 'Megaphone', onClick: () => window.openJobAdvert({ employeeId: employee.id }) }] : []),
               { divider: true, key: 'd1' },
-              { label: 'Archive employee', icon: 'Archive', danger: true, onClick: () => { S.archive(employee.id); onBack && onBack(); } }
+              { label: 'Archive employee (leaver)', icon: 'Archive', danger: true, onClick: () => { S.archive(employee.id); onBack && onBack(); } },
+              ...(S.can('employees.archive') && employee.employeeId !== S.session.employeeId ? [{ label: 'Delete permanently', icon: 'Trash2', danger: true, onClick: () => {
+                if (!window.confirm('Delete ' + S.fullName(employee) + ' permanently?\n\nUse this only for a record added by mistake. For someone who has left, choose "Archive employee" instead — employment records must be kept.')) return;
+                const r = S.remove(employee.id); if (r && r.error) { window.alert(r.error); return; } onBack && onBack();
+              } }] : [])
             ]} />
           </div>
         </div>

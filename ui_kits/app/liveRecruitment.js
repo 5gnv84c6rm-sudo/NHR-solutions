@@ -174,6 +174,86 @@
     };
   }
 
+  /* ---------------------------------------------------------------- employees */
+  const EMP_STATUS = { Active: 'active', 'On Leave': 'on_leave', Probation: 'probation', Pending: 'pending', Inactive: 'inactive' };
+  const EMP_STATUS_BACK = invert(EMP_STATUS);
+  const RTW = { Verified: 'verified', Pending: 'pending', Expired: 'expired', 'Not required': 'not_required' };
+  const RTW_BACK = invert(RTW);
+  const PATTERN = { Fixed: 'fixed', Flexible: 'flexible', 'Shift-based': 'shift_based' };
+  const PATTERN_BACK = invert(PATTERN);
+  const FREQ = { Weekly: 'weekly', Fortnightly: 'fortnightly', 'Four-weekly': 'four_weekly', Monthly: 'monthly' };
+  const FREQ_BACK = invert(FREQ);
+  /* Readable columns only — the table also holds encrypted fields the API
+     never returns, so select * is refused. */
+  const EMP_COLS = 'id,tenant_id,employee_ref,first_name,middle_name,last_name,preferred_name,date_of_birth,gender,pronouns,nationality,' +
+    'rtw_status,rtw_expires_on,personal_email,work_email,mobile,home_phone,job_title,department,location,manager_id,employment_type,' +
+    'employment_status,start_date,probation_end_date,contract_end_date,working_pattern,hours_per_week,annual_leave_days,' +
+    'employee_category,cost_centre,branch,onboarding,archived,archived_at,created_at,updated_at,app_data';
+  const PAY_COLS = 'employee_id,payroll_ref,pay_frequency,annual_salary,hourly_rate,tax_code,payment_method,bank_account_name,bank_account_last4,app_data';
+
+  function employeeToRow(e, tenant) {
+    return {
+      id: e.id, tenant_id: tenant, employee_ref: e.employeeId,
+      first_name: e.firstName || '—', middle_name: e.middleName || null, last_name: e.lastName || '—', preferred_name: e.preferredName || null,
+      date_of_birth: day(e.dateOfBirth), gender: e.gender || null, pronouns: e.pronouns || null, nationality: e.nationality || null,
+      rtw_status: RTW[e.rightToWorkStatus] || 'pending', rtw_expires_on: day(e.rightToWorkExpiry),
+      personal_email: e.personalEmail || null, work_email: e.workEmail || null, mobile: e.mobile || null, home_phone: e.homePhone || null,
+      job_title: e.jobTitle || null, department: e.department || null, location: e.location || null,
+      manager_id: isUuid(e.managerId) && e.managerId !== e.id ? e.managerId : null,
+      employment_type: EMP_TYPE[e.employmentType] || 'full_time', employment_status: EMP_STATUS[e.employmentStatus] || 'probation',
+      start_date: day(e.startDate), probation_end_date: day(e.probationEndDate), contract_end_date: day(e.contractEndDate),
+      working_pattern: PATTERN[e.workingPattern] || 'fixed', hours_per_week: num(e.hoursPerWeek) != null ? num(e.hoursPerWeek) : 37.5,
+      annual_leave_days: num(e.annualLeaveEntitlement) != null ? num(e.annualLeaveEntitlement) : 28,
+      employee_category: e.employeeCategory || null, cost_centre: e.costCentre || null, branch: e.branch || null,
+      onboarding: e.onboarding || {}, archived: !!e.archived, archived_at: e.archived ? (e.archivedAt || new Date().toISOString()) : null,
+      app_data: {
+        address: e.address || null, emergencyContacts: e.emergencyContacts || [], notes: e.notes || [],
+        documents: (e.documents || []).map(d => Object.assign({}, d, { dataUrl: undefined, file: undefined })),
+        activity: (e.activity || []).slice(0, 200), createdBy: e.createdBy || '', updatedBy: e.updatedBy || ''
+      }
+    };
+  }
+  function payToRow(e, tenant) {
+    const p = e.payroll || {};
+    const salary = num(p.salary), hourly = num(p.hourlyRate);
+    const last4 = String(p.accountNumberLast4 || '').replace(/\D/g, '').slice(-4);
+    return {
+      tenant_id: tenant, employee_id: e.id, payroll_ref: p.payrollId || null, pay_frequency: FREQ[p.payFrequency] || 'monthly',
+      /* One pay basis only: salary wins if both were typed. */
+      annual_salary: salary, hourly_rate: salary != null ? null : hourly,
+      tax_code: p.taxCode || null, payment_method: p.paymentMethod || null, bank_account_name: p.accountName || null,
+      bank_account_last4: last4.length === 4 ? last4 : null,
+      app_data: { nationalInsurance: e.nationalInsurance || '', sortCodeMasked: p.sortCodeMasked || '' }
+    };
+  }
+  function employeeFromRow(r, pay) {
+    const a = r.app_data || {}, p = pay || {}, pa = (pay && pay.app_data) || {};
+    return {
+      id: r.id, employeeId: r.employee_ref, firstName: r.first_name, middleName: r.middle_name || '', lastName: r.last_name === '—' ? '' : r.last_name,
+      preferredName: r.preferred_name || '', profilePhoto: null, dateOfBirth: r.date_of_birth || '', gender: r.gender || '', pronouns: r.pronouns || '',
+      nationality: r.nationality || '', nationalInsurance: pa.nationalInsurance || '',
+      rightToWorkStatus: RTW_BACK[r.rtw_status] || 'Pending', rightToWorkExpiry: r.rtw_expires_on || '',
+      personalEmail: r.personal_email || '', workEmail: r.work_email || '', mobile: r.mobile || '', homePhone: r.home_phone || '',
+      address: a.address || { line1: '', line2: '', city: '', county: '', postcode: '', country: 'United Kingdom' },
+      emergencyContacts: a.emergencyContacts || [],
+      jobTitle: r.job_title || '', department: r.department || '', location: r.location || '', managerId: r.manager_id || null,
+      employmentType: EMP_TYPE_BACK[r.employment_type] || 'Full-time', employmentStatus: EMP_STATUS_BACK[r.employment_status] || 'Probation',
+      startDate: r.start_date || '', probationEndDate: r.probation_end_date || '', contractEndDate: r.contract_end_date || '',
+      workingPattern: PATTERN_BACK[r.working_pattern] || 'Fixed', hoursPerWeek: Number(r.hours_per_week),
+      annualLeaveEntitlement: Number(r.annual_leave_days), employeeCategory: r.employee_category || '', costCentre: r.cost_centre || '', branch: r.branch || '',
+      payroll: {
+        payrollId: p.payroll_ref || '', payFrequency: FREQ_BACK[p.pay_frequency] || 'Monthly',
+        salary: p.annual_salary != null ? Number(p.annual_salary) : '', hourlyRate: p.hourly_rate != null ? Number(p.hourly_rate) : '',
+        paymentMethod: p.payment_method || 'Bank transfer', taxCode: p.tax_code || '', accountName: p.bank_account_name || '',
+        accountNumberLast4: p.bank_account_last4 || '', sortCodeMasked: pa.sortCodeMasked || ''
+      },
+      documents: a.documents || [], notes: a.notes || [], activity: a.activity || [],
+      onboarding: Object.assign({ contract: false, rightToWork: false, emergencyContact: false, manager: false, payroll: false }, r.onboarding || {}),
+      archived: !!r.archived, archivedAt: r.archived_at || '',
+      createdAt: r.created_at, updatedAt: r.updated_at, createdBy: a.createdBy || '', updatedBy: a.updatedBy || ''
+    };
+  }
+
   /* ---------------------------------------------------------------- load */
   function claims(db) {
     return db.auth.getSession().then(res => {
@@ -190,11 +270,14 @@
     if (!active()) { set({ status: 'off' }); return Promise.resolve(null); }
     if (state.loading) return state.loading;
     set({ status: 'loading', error: '' });
-    state.loading = sb().client().then(db => claims(db).then(meta => {
+    const startWrites = writes;
+    /* Read only after queued writes have reached the database. */
+    state.loading = chain.then(() => sb().client()).then(db => claims(db).then(meta => {
       if (!meta || !meta.tenant_id) {
         throw new Error('Your account is not linked to a workspace yet — the access token hook may not be switched on in Supabase.');
       }
       state.tenantId = meta.tenant_id;
+      state.userId = meta.__sub || (session() && session().userId) || '';
       /* Screens ask EmployeeStore what the user may do; give it the real role. */
       const ROLE = { super_admin: 'Super Admin', hr_admin: 'HR Admin', manager: 'Manager', employee: 'Employee' };
       const S = window.EmployeeStore;
@@ -204,9 +287,26 @@
       return Promise.all([
         q('vacancies'), q('candidates'), q('candidate_notes', '*', 'created_at'), q('interviews', '*', 'scheduled_at'),
         q('job_adverts'), q('candidate_email_templates', '*', 'updated_at'),
-        db.from('tenants').select('slug, name').eq('id', meta.tenant_id).maybeSingle().then(r => r.data || null)
+        db.from('tenants').select('slug, name').eq('id', meta.tenant_id).maybeSingle().then(r => r.data || null),
+        q('employees', EMP_COLS),
+        /* Pay is payroll-restricted; for other roles it comes back empty. */
+        db.from('employee_pay').select(PAY_COLS).limit(5000).then(r => r.error ? [] : (r.data || [])),
+        db.from('profiles').select('name, employee_id').eq('id', state.userId).maybeSingle().then(r => r.data || null)
       ]);
-    })).then(([vacs, cands, notes, ivs, adverts, templates, tenant]) => {
+    })).then(([vacs, cands, notes, ivs, adverts, templates, tenant, emps, pays, profile]) => {
+      /* Someone saved while this read was in flight: what came back may be
+         missing that change, so read again rather than overwrite it. */
+      if (writes !== startWrites) { state.again = true; return true; }
+      const S = window.EmployeeStore;
+      if (S && S._load) {
+        const payBy = {}; pays.forEach(p => { payBy[p.employee_id] = p; });
+        const list = emps.map(r => employeeFromRow(r, payBy[r.id]));
+        S._load(list);
+        if (profile && S.setSession) {
+          const me = list.find(e => e.id === profile.employee_id);
+          S.setSession({ name: profile.name || S.session.name, employeeId: me ? me.employeeId : '', userId: state.userId });
+        }
+      }
       const byCand = (rows) => { const m = {}; rows.forEach(r => { (m[r.candidate_id] = m[r.candidate_id] || []).push(r); }); return m; };
       const n = byCand(notes), iv = byCand(ivs);
       state.slug = tenant && tenant.slug ? String(tenant.slug) : '';
@@ -224,7 +324,10 @@
       set({ status: 'error', error: e.message || String(e) });
       window.dispatchEvent(new CustomEvent('nhr-live-error', { detail: state.error }));
       return null;
-    }).finally(() => { state.loading = null; });
+    }).finally(() => {
+      state.loading = null;
+      if (state.again) { state.again = false; setTimeout(refresh, 0); }
+    });
     return state.loading;
   }
 
@@ -232,7 +335,9 @@
   /* Writes are queued so they reach the database in the order they were made
      — a vacancy must exist before its first candidate. */
   let chain = Promise.resolve();
+  let writes = 0;
   function enqueue(fn) {
+    writes++;
     chain = chain.then(fn).catch(e => {
       const msg = (e && e.message) || String(e);
       set({ error: msg });
@@ -255,7 +360,8 @@
   function ok(r) { if (r && r.error) throw new Error(r.error.message); return r; }
 
   function persist(kind, before, after) {
-    if (!active() || state.status !== 'live') return;
+    /* Once the workspace is known, save even while a background refresh runs. */
+    if (!active() || !state.tenantId) return;
     const tenant = state.tenantId;
     enqueue(() => sb().client().then(db => {
       if (kind === 'recruitment') {
@@ -286,6 +392,26 @@
         if (v.removed.length) p = p.then(() => db.from('vacancies').delete().in('id', v.removed.map(x => x.id)).then(ok));
         return p;
       }
+      if (kind === 'employees') {
+        const e = diff(before, after);
+        let p = Promise.resolve();
+        const canPay = window.EmployeeStore && window.EmployeeStore.can('payroll.read');
+        /* Managers are saved before the people who report to them. */
+        const ordered = e.upserts.slice().sort((x, y) => (x.managerId ? 1 : 0) - (y.managerId ? 1 : 0));
+        ordered.forEach(x => {
+          const old = e.prev[x.id];
+          /* Plain insert / update rather than upsert: Postgres checks an
+             upserted row against the read policy, which cannot yet see a
+             brand-new employee, so an upsert of a new person is refused. */
+          const row = employeeToRow(x, tenant);
+          p = p.then(() => (old ? db.from('employees').update(row).eq('id', x.id) : db.from('employees').insert(row)).then(ok));
+          if (canPay && (!old || !same(old.payroll, x.payroll) || old.nationalInsurance !== x.nationalInsurance)) {
+            p = p.then(() => db.from('employee_pay').upsert(payToRow(x, tenant), { onConflict: 'employee_id' }).then(ok));
+          }
+        });
+        if (e.removed.length) p = p.then(() => db.from('employees').delete().in('id', e.removed.map(x => x.id)).then(ok));
+        return p;
+      }
       if (kind === 'adverts') {
         const a = diff(before && before.adverts, after && after.adverts);
         let p = Promise.resolve();
@@ -299,7 +425,8 @@
   }
 
   function saveTemplate(key, t) {
-    if (!active() || state.status !== 'live') return;
+    /* Once the workspace is known, save even while a background refresh runs. */
+    if (!active() || !state.tenantId) return;
     const tenant = state.tenantId;
     enqueue(() => sb().client().then(db => db.from('candidate_email_templates').upsert({
       tenant_id: tenant, template: key, mode: t.mode || 'auto',

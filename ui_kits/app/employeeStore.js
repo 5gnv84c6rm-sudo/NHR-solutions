@@ -9,6 +9,10 @@
 */
 (function () {
   const KEY = 'nhr-employees-v1';
+  /* Live (non-demo) accounts keep their own cache, filled from the database by
+     liveRecruitment.js, and never see the sample employees. */
+  function K() { return window.NHRLive && NHRLive.active() ? KEY + ':live:' + NHRLive.scope() : KEY; }
+  function isLive() { return !!(window.NHRLive && NHRLive.active()); }
 
   /* ---------- reference data ---------- */
   const DEPARTMENTS = ['Operations', 'Finance', 'People', 'Support', 'Sales', 'Warehouse'];
@@ -34,7 +38,7 @@
   function can(permission, role) { return (PERMISSIONS[role || session.role] || []).indexOf(permission) !== -1; }
 
   /* ---------- helpers ---------- */
-  function uid(prefix) { return prefix + '-' + Math.random().toString(36).slice(2, 9); }
+  function uid(prefix) { return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : prefix + '-' + Math.random().toString(36).slice(2, 9); }
   function today() { return new Date().toISOString().slice(0, 10); }
   function stamp() { return new Date().toISOString(); }
   function initials(e) { return ((e.firstName || '')[0] || '') + ((e.lastName || '')[0] || ''); }
@@ -133,17 +137,26 @@
   function notify() { subs.forEach(fn => { try { fn(); } catch (err) { /* listener error */ } }); }
   function read() {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = localStorage.getItem(K());
       if (raw) return JSON.parse(raw);
     } catch (err) { /* fall through to seed */ }
+    /* A real company starts with no sample staff. */
+    if (isLive()) return [];
     const s = seed();
     write(s);
     return s;
   }
   function write(list) {
-    try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (err) { /* storage full */ }
+    try { localStorage.setItem(K(), JSON.stringify(list)); } catch (err) { /* storage full */ }
   }
-  function save(list) { write(list); notify(); return list; }
+  function save(list) {
+    let before = null;
+    try { before = JSON.parse(localStorage.getItem(K())); } catch (err) { /* none */ }
+    write(list);
+    if (isLive()) NHRLive.persist('employees', before, list);
+    notify();
+    return list;
+  }
 
   function logActivity(e, action) {
     e.activity = [{ id: uid('act'), action, user: session.name, at: stamp() }].concat(e.activity || []);
@@ -164,7 +177,11 @@
       const o = opts || {};
       let all = read().filter(e => o.includeArchived ? true : !e.archived);
       if (session.role === 'Employee') all = all.filter(e => e.employeeId === session.employeeId);
-      if (session.role === 'Manager') all = all.filter(e => e.managerId === 'emp-1' || e.id === 'emp-1');
+      if (session.role === 'Manager') {
+        const me = all.find(e => e.employeeId === session.employeeId);
+        const myId = me ? me.id : 'emp-1';
+        all = all.filter(e => e.managerId === myId || e.id === myId);
+      }
       if (o.query) {
         const q = o.query.toLowerCase();
         all = all.filter(e => [fullName(e), e.employeeId, e.personalEmail, e.workEmail, e.mobile, e.jobTitle, e.department]
@@ -302,6 +319,19 @@
       return e;
     },
 
+    /* Permanent removal, for records added by mistake. Leavers should be
+       archived instead — employment records have to be kept after someone
+       leaves. Your own record cannot be deleted: your login is linked to it. */
+    remove(id) {
+      const all = read();
+      const e = all.find(x => x.id === id);
+      if (!e) return { error: 'Employee not found.' };
+      if (e.employeeId && e.employeeId === session.employeeId) return { error: 'This is your own record — your login is linked to it, so it cannot be deleted.' };
+      if (!can('employees.archive')) return { error: 'Only HR Admin and Super Admin can delete employees.' };
+      save(all.filter(x => x.id !== id).map(x => x.managerId === id ? Object.assign({}, x, { managerId: null }) : x));
+      return { ok: true };
+    },
+
     archive(id) {
       const all = read();
       const e = all.find(x => x.id === id);
@@ -338,7 +368,11 @@
       return created;
     },
 
-    reset() { localStorage.removeItem(KEY); save(seed()); },
+    reset() { localStorage.removeItem(K()); if (isLive()) return; save(seed()); },
+    /* Used by liveRecruitment.js: replace the cache without writing back. */
+    _load(list) { write(list); notify(); },
+    /* The signed-in person, from their real account. */
+    setSession(patch) { session = Object.assign({}, session, patch); notify(); },
     clearAll() { save([]); }
   };
 

@@ -1,7 +1,8 @@
 // Supabase Edge Function: send-candidate-email
 //
 // Sends recruitment emails to candidates — application received, interview
-// invitation, offer, welcome, unsuccessful — through Resend, and records each
+// invitation, offer, welcome, unsuccessful — and account emails to customers
+// (welcome on registration, plan confirmed) through Resend, and records each
 // one in public.candidate_emails for the audit trail.
 //
 // Two callers:
@@ -57,6 +58,33 @@ function receivedEmail(r: Record<string, unknown>) {
   return { subject, text };
 }
 
+const APP_URL = 'https://nhrsolutions.net/ui_kits/app/index.html';
+
+function accountWelcomeEmail(r: Record<string, unknown>) {
+  const hi = r.first_name ? `Hi ${r.first_name},` : 'Hello,';
+  const trial = r.status === 'trial' && r.trial_ends_on
+    ? `Your free trial of the ${r.plan} plan is active until ${r.trial_ends_on}. No card is needed until then.`
+    : `You are on the ${r.plan} plan.`;
+  const subject = `Welcome to NHR Solution — ${r.company} is ready`;
+  const text = `${hi}\n\nThank you for registering ${r.company} with NHR Solution. Your account is set up and ready to use.\n\n` +
+    `${trial}\n\nSign in here: ${APP_URL}\n\nGood first steps:\n` +
+    `• Add your employees (Employees → Add Employee, or import a spreadsheet)\n` +
+    `• Set up holiday entitlements and your leave year\n` +
+    `• Post your first job advert from Job Adverts\n\n` +
+    `If you need a hand, just reply to this email.\n\nThe NHR Solution team`;
+  return { subject, text };
+}
+
+function planConfirmedEmail(r: Record<string, unknown>) {
+  const hi = r.first_name ? `Hi ${r.first_name},` : 'Hello,';
+  const subject = `Your NHR Solution plan is confirmed — ${r.plan}`;
+  const text = `${hi}\n\nThank you — ${r.company} is now on the ${r.plan} plan of NHR Solution. ` +
+    `Your account continues as normal, with nothing for you to do.\n\n` +
+    `You can see invoices and change your plan any time under Plan & Billing: ${APP_URL}\n\n` +
+    `If you have any questions, just reply to this email.\n\nThe NHR Solution team`;
+  return { subject, text };
+}
+
 function textToHtml(text: string) {
   return '<div style="font:15px/1.65 -apple-system,Segoe UI,Roboto,sans-serif;color:#101515;max-width:600px">' +
     esc(text).split(/\n{2,}/).map((p) => `<p style="margin:0 0 14px">${p.replace(/\n/g, '<br>')}</p>`).join('') + '</div>';
@@ -77,13 +105,20 @@ Deno.serve(async (req) => {
 
   const secret = req.headers.get('x-nhr-notify-secret');
   if (secret) {
-    // ---- database trigger: application received
+    // ---- database triggers: application received, account welcome, plan confirmed
     if (!NOTIFY_SECRET || secret !== NOTIFY_SECRET) return json({ error: 'Forbidden' }, 403);
     const r = (body.record ?? {}) as Record<string, unknown>;
     if (!emailOk(r.email)) return json({ skipped: 'no valid email' });
-    tenantId = String(r.tenant_id); candidateId = String(r.id); to = String(r.email);
-    ({ subject, text } = receivedEmail(r)); template = 'received';
-    replyTo = emailOk(r.reply_to) ? String(r.reply_to) : undefined;
+    tenantId = String(r.tenant_id); to = String(r.email);
+    if (template === 'account_welcome') {
+      ({ subject, text } = accountWelcomeEmail(r));
+    } else if (template === 'plan_confirmed') {
+      ({ subject, text } = planConfirmedEmail(r));
+    } else {
+      candidateId = String(r.id);
+      ({ subject, text } = receivedEmail(r)); template = 'received';
+      replyTo = emailOk(r.reply_to) ? String(r.reply_to) : undefined;
+    }
   } else {
     // ---- signed-in staff member
     const auth = req.headers.get('Authorization') ?? '';
